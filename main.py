@@ -9,8 +9,12 @@ from aiogram.types import WebAppInfo, ReplyKeyboardMarkup, KeyboardButton
 import aiosqlite
 
 # ========== НАСТРОЙКИ ==========
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "ВСТАВЬ_СЮДА_СВОЙ_ТОКЕН")
-ADMIN_ID = int(os.environ.get("ADMIN_ID", "123456789"))
+# ⚠️ Вставь сюда НОВЫЙ токен после отзыва старого в @BotFather!
+BOT_TOKEN = "8761561892:AAHE2mt7XrTEVHbT0BjBxvw69xoRFnh0SDk" 
+
+# Замени на свой реальный ID (узнать у @userinfobot)
+ADMIN_ID = 1307127654
+
 WEB_PORT = int(os.environ.get("PORT", 8080))
 DB_PATH = "cloudshop.db"
 WEBAPP_DIR = Path(__file__).parent / "webapp"
@@ -108,7 +112,6 @@ START_TEXT = """🔥 Поехали без лирики:
 
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
-    # URL берётся из переменной окружения RENDER_EXTERNAL_URL или дефолтный
     webapp_url = os.environ.get("RENDER_EXTERNAL_URL", f"http://localhost:{WEB_PORT}")
     
     keyboard = ReplyKeyboardMarkup(
@@ -148,7 +151,6 @@ async def main():
     runner = web.AppRunner(web_app)
     await runner.setup()
     
-    # ВАЖНО: 0.0.0.0 для Render, localhost для локального теста
     site = web.TCPSite(runner, "0.0.0.0", WEB_PORT)
     await site.start()
     print(f"🌐 Веб-сервер запущен: http://0.0.0.0:{WEB_PORT}")
