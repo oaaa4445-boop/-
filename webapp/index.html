@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CloudShop</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+    <!-- Главная страница -->
+    <div id="home-page" class="page active">
+        <div class="header">
+            <div class="search-bar">
+                <span></span>
+                <input type="text" placeholder="Поиск товаров" id="search-input">
+            </div>
+            <div class="profile-btn" onclick="showProfile()">
+                <div class="avatar">👤</div>
+                <span>В профиль</span>
+                <span class="arrow">›</span>
+            </div>
+        </div>
+        
+        <div class="banner">
+            <div class="banner-content">
+                <div class="banner-title">CLOUD SHOP</div>
+                <div class="banner-subtitle">Лучшие цены в Екб</div>
+            </div>
+        </div>
+        
+        <h2 class="section-title">Категории</h2>
+        <div class="categories-grid" id="categories-grid">
+            <div class="loading">Загрузка...</div>
+        </div>
+    </div>
+
+    <!-- Страница категории -->
+    <div id="category-page" class="page">
+        <div class="top-bar">
+            <button class="back-btn" onclick="goHome()">← Назад</button>
+            <h2 id="category-title">Категория</h2>
+        </div>
+        <div class="products-grid" id="products-grid">
+            <div class="loading">Загрузка товаров...</div>
+        </div>
+    </div>
+
+    <!-- Страница корзины -->
+    <div id="cart-page" class="page">
+        <div class="top-bar">
+            <button class="back-btn" onclick="goHome()">← Назад</button>
+            <h2> Корзина</h2>
+        </div>
+        <div id="cart-items">
+            <div class="empty-cart">Корзина пуста</div>
+        </div>
+        <div class="cart-footer">
+            <div class="cart-total">Итого: <span id="total-price">0</span> ₽</div>
+            <button class="checkout-btn" onclick="checkout()">Оформить заказ</button>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
