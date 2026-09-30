@@ -453,3 +453,148 @@ body {
 @keyframes fadeOut {
     to { opacity: 0; }
 }
+/* Header actions */
+.header-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.action-btn {
+    width: 44px;
+    height: 44px;
+    background: #1a1a2e;
+    border: 1px solid #2a2a4a;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s;
+}
+
+.action-btn:active {
+    background: #252545;
+}
+
+.action-icon {
+    font-size: 20px;
+}
+
+.cart-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: #ff3b30;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    min-width: 20px;
+    height: 20px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+}
+
+.cart-badge.hidden {
+    display: none;
+}
+
+/* Profile page */
+.profile-content {
+    text-align: center;
+    padding: 20px 0;
+}
+
+.profile-avatar {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    margin: 0 auto 16px;
+}
+
+.profile-name {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.profile-username {
+    font-size: 14px;
+    color: #888;
+    margin-bottom: 24px;
+}
+
+.profile-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.stat-item {
+    background: #1a1a2e;
+    border: 1px solid #2a2a4a;
+    border-radius: 12px;
+    padding: 16px 8px;
+}
+
+.stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #00d4ff;
+    margin-bottom: 4px;
+}
+
+.stat-label {
+    font-size: 11px;
+    color: #888;
+}
+
+.profile-menu {
+    background: #1a1a2e;
+    border: 1px solid #2a2a4a;
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid #2a2a4a;
+    transition: background 0.2s;
+}
+
+.menu-item:last-child {
+    border-bottom: none;
+}
+
+.menu-item:active {
+    background: #252545;
+}
+
+.menu-icon {
+    font-size: 20px;
+    margin-right: 12px;
+}
+
+.menu-text {
+    flex: 1;
+    text-align: left;
+    font-size: 15px;
+}
+
+.menu-arrow {
+    color: #666;
+    font-size: 20px;
+}
