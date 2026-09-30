@@ -7,6 +7,8 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart
 from aiogram.types import WebAppInfo, ReplyKeyboardMarkup, KeyboardButton
 import aiosqlite
+from aiogram.fsm.storage.memory import MemoryStorage
+from admin import router as admin_router
 
 # ========== НАСТРОЙКИ ==========
 # Токен и ID админа берутся из переменных окружения Render
