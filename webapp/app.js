@@ -10,6 +10,9 @@ let cart = [];
 let favorites = [];
 let orders = [];
 
+// Юзернейм менеджера (без @)
+const MANAGER_USERNAME = 'ghjkIz';
+
 // Эмодзи для категорий
 const categoryEmojis = {
     'Одноразки': '💨',
@@ -107,7 +110,6 @@ function addToCart(id, name, price) {
     }
     
     showToast(`✅ ${name} добавлен в корзину`);
-    updateCartBadge();
 }
 
 function showCart() {
@@ -144,7 +146,6 @@ function changeQty(id, delta) {
             cart = cart.filter(i => i.id !== id);
         }
         showCart();
-        updateCartBadge();
         
         if (tg.HapticFeedback) {
             tg.HapticFeedback.selectionChanged();
@@ -157,23 +158,10 @@ function updateTotal() {
     document.getElementById('total-price').textContent = total;
 }
 
-function updateCartBadge() {
-    const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-    const badge = document.getElementById('cart-badge');
-    if (badge) {
-        badge.textContent = totalItems;
-        if (totalItems > 0) {
-            badge.classList.remove('hidden');
-        } else {
-            badge.classList.add('hidden');
-        }
-    }
-}
-
 // ========== ОФОРМЛЕНИЕ ЗАКАЗА ==========
 function checkout() {
     if (cart.length === 0) {
-        showToast(' Корзина пуста');
+        showToast('🛒 Корзина пуста');
         return;
     }
     
@@ -197,7 +185,6 @@ function checkout() {
     
     // Очищаем корзину
     cart = [];
-    updateCartBadge();
     
     // Отправляем данные боту
     tg.sendData(JSON.stringify(data));
@@ -205,7 +192,6 @@ function checkout() {
 
 // ========== ПРОФИЛЬ ==========
 function showProfile() {
-    // Заполняем данные пользователя из Telegram
     const name = tgUser.first_name ? `${tgUser.first_name} ${tgUser.last_name || ''}`.trim() : 'Гость';
     const username = tgUser.username ? `@${tgUser.username}` : '@неизвестно';
     
@@ -213,7 +199,6 @@ function showProfile() {
     document.getElementById('profile-username').textContent = username;
     document.getElementById('profile-avatar').textContent = name.charAt(0).toUpperCase();
     
-    // Статистика
     document.getElementById('stat-orders').textContent = orders.length;
     const totalSpent = orders.reduce((sum, o) => sum + o.total, 0);
     document.getElementById('stat-spent').textContent = `${totalSpent} ₽`;
@@ -231,11 +216,10 @@ function showFavorites() {
 }
 
 function openSupport() {
-    // Открываем чат с менеджером
     if (tg.openTelegramLink) {
-        tg.openTelegramLink('https://t.me/your_manager');  // ЗАМЕНИ на свой username!
+        tg.openTelegramLink(`https://t.me/${MANAGER_USERNAME}`);
     } else {
-        showToast('💬 Поддержка: @your_manager');
+        showToast(`💬 Поддержка: @${MANAGER_USERNAME}`);
     }
 }
 
@@ -295,4 +279,3 @@ document.getElementById('search-input')?.addEventListener('input', function(e) {
 
 // ========== ЗАПУСК ==========
 loadCategories();
-updateCartBadge();
