@@ -6,12 +6,13 @@ from aiohttp import web
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart
 from aiogram.types import WebAppInfo, ReplyKeyboardMarkup, KeyboardButton
-import aiosqlite
 from aiogram.fsm.storage.memory import MemoryStorage
+import aiosqlite
+
+# Импортируем роутер админки
 from admin import router as admin_router
 
 # ========== НАСТРОЙКИ ==========
-# Токен и ID админа берутся из переменных окружения Render
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 ADMIN_ID = int(os.environ.get("ADMIN_ID"))
 
@@ -27,8 +28,26 @@ WEBAPP_DIR = Path(__file__).parent / "webapp"
 async def init_db():
     async with aiosqlite.connect(DB_PATH) as db:
         await db.executescript("""
-            CREATE TABLE IF NOT EXISTS categories (id INTEGER PRIMARY KEY, name TEXT, image TEXT);
-            CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, name TEXT, description TEXT, price REAL, image TEXT, flavors TEXT);
+            CREATE TABLE IF NOT EXISTS categories (
+                id INTEGER PRIMARY KEY,
+                name TEXT,
+                image TEXT
+            );
+            CREATE TABLE IF NOT EXISTS products (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                category TEXT,
+                name TEXT,
+                description TEXT,
+                price REAL,
+                image TEXT,
+                flavors TEXT
+            );
+            CREATE TABLE IF NOT EXISTS users (
+                user_id INTEGER PRIMARY KEY,
+                username TEXT,
+                full_name TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
             INSERT OR IGNORE INTO categories (id, name, image) VALUES 
             (1, 'Одноразки', '/static/images/disposables.jpg'),
             (2, 'Под-системы', '/static/images/pods.jpg'),
@@ -53,7 +72,20 @@ async def get_products(category):
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute("SELECT * FROM products WHERE category=?", (category,)) as cursor:
             rows = await cursor.fetchall()
-            return [{"id": r[0], "category": r[1], "name": r[2], "description": r[3], "price": r[4], "image": r[5], "flavors": r[6]} for r in rows]
+            return [{
+                "id": r[0], "category": r[1], "name": r[2],
+                "description": r[3], "price": r[4], "image": r[5],
+                "flavors": r[6]
+            } for r in rows]
+
+async def save_user(user_id, username, full_name):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT OR IGNORE INTO users (user_id, username, full_name) VALUES (?, ?, ?)",
+            (user_id, username, full_name)
+        )
+        await db.commit()
+# =================================
 
 # ========== ВЕБ-СЕРВЕР ==========
 async def handle_index(request):
@@ -79,14 +111,15 @@ def create_web_app():
     app.router.add_get("/api/categories", api_categories)
     app.router.add_get("/api/products/{category}", api_products)
     return app
+# ================================
 
 # ========== TELEGRAM БОТ ==========
 bot = Bot(token=BOT_TOKEN)
-storage = MemoryStorage()  # Хранилище для FSM
-dp = Dispatcher(storage=storage)  # Передаём storage в Dispatcher
+storage = MemoryStorage()
+dp = Dispatcher(storage=storage)
 
-# Регистрируем роутеры (порядок важен!)
-dp.include_router(admin_router)  # Админка ПЕРВОЙ (чтобы перехватывала команды)
+# Регистрируем роутеры (админка ПЕРВОЙ, чтобы перехватывала команды)
+dp.include_router(admin_router)
 
 START_TEXT = """🔥 Поехали без лирики:
 — Стартовые наборы? Есть.
@@ -98,6 +131,13 @@ START_TEXT = """🔥 Поехали без лирики:
 
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
+    # Сохраняем пользователя в БД
+    await save_user(
+        message.from_user.id,
+        message.from_user.username,
+        message.from_user.full_name
+    )
+    
     webapp_url = os.environ.get("RENDER_EXTERNAL_URL", f"http://localhost:{WEB_PORT}")
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
@@ -107,16 +147,37 @@ async def cmd_start(message: types.Message):
         resize_keyboard=True
     )
     await message.answer(START_TEXT, reply_markup=keyboard)
+
+@dp.message(F.web_app_data)
+async def handle_webapp_data(message: types.Message):
+    try:
+        data = json.loads(message.web_app_data.data)
+        if data.get("type") == "order":
+            order_text = f"🛒 НОВЫЙ ЗАКАЗ\n\n👤 {message.from_user.full_name}\n📱 @{message.from_user.username}\n\n📦 Состав:\n"
+            total = 0
+            for item in data["items"]:
+                item_sum = item["price"] * item["quantity"]
+                total += item_sum
+                order_text += f"• {item['name']} x{item['quantity']} = {item_sum}₽\n"
+            order_text += f"\n💰 Итого: {total}₽"
+            await message.answer("✅ Заказ принят! Менеджер свяжется с вами.")
+            await bot.send_message(ADMIN_ID, order_text)
+    except Exception as e:
+        print(f"Ошибка обработки заказа: {e}")
+# ================================
+
 # ========== ЗАПУСК ==========
 async def main():
     await init_db()
     print("✅ База данных готова")
+    
     web_app = create_web_app()
     runner = web.AppRunner(web_app)
     await runner.setup()
     site = web.TCPSite(runner, "0.0.0.0", WEB_PORT)
     await site.start()
-    print(f"🌐 Веб-сервер запущен: http://0.0.0.0:{WEB_PORT}")
+    print(f" Веб-сервер запущен: http://0.0.0.0:{WEB_PORT}")
+    
     print("🤖 Бот запущен...")
     await dp.start_polling(bot)
 
@@ -124,4 +185,4 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\n Бот остановлен")
+        print("\n👋 Бот остановлен")
