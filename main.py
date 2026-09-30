@@ -9,20 +9,10 @@ from aiogram.types import WebAppInfo, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
 import aiosqlite
 
-# Импортируем роутер админки
+from config import BOT_TOKEN, ADMIN_ID, WEB_PORT, DB_PATH
 from admin import router as admin_router
 
-# ========== НАСТРОЙКИ ==========
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-ADMIN_ID = int(os.environ.get("ADMIN_ID"))
-
-if not BOT_TOKEN or not ADMIN_ID:
-    raise ValueError("Ошибка: Не указаны BOT_TOKEN или ADMIN_ID в переменных окружения!")
-
-WEB_PORT = int(os.environ.get("PORT", 8080))
-DB_PATH = "cloudshop.db"
 WEBAPP_DIR = Path(__file__).parent / "webapp"
-# ================================
 
 # ========== БАЗА ДАННЫХ ==========
 async def init_db():
@@ -85,6 +75,12 @@ async def save_user(user_id, username, full_name):
             (user_id, username, full_name)
         )
         await db.commit()
+
+async def get_all_users():
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT user_id FROM users") as cursor:
+            rows = await cursor.fetchall()
+            return [r[0] for r in rows]
 # =================================
 
 # ========== ВЕБ-СЕРВЕР ==========
@@ -118,8 +114,12 @@ bot = Bot(token=BOT_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
-# Регистрируем роутеры (админка ПЕРВОЙ, чтобы перехватывала команды)
-dp.include_router(admin_router)
+# Передаём ADMIN_ID и bot в роутер админки через данные
+admin_router_instance = admin_router
+admin_router_instance.admin_id = ADMIN_ID
+admin_router_instance.bot = bot
+
+dp.include_router(admin_router_instance)
 
 START_TEXT = """🔥 Поехали без лирики:
 — Стартовые наборы? Есть.
@@ -131,7 +131,6 @@ START_TEXT = """🔥 Поехали без лирики:
 
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
-    # Сохраняем пользователя в БД
     await save_user(
         message.from_user.id,
         message.from_user.username,
