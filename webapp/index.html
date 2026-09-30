@@ -1,121 +1,298 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CloudShop</title>
-    <link rel="stylesheet" href="/static/style.css">
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-</head>
-<body>
-    <!-- Главная страница -->
-    <div id="home-page" class="page active">
-        <div class="header">
-            <div class="search-bar">
-                <span>🔍</span>
-                <input type="text" placeholder="Поиск товаров" id="search-input">
-            </div>
-            <div class="header-actions">
-                <div class="action-btn profile-btn" onclick="showProfile()">
-                    <span class="action-icon">👤</span>
-                </div>
-                <div class="action-btn cart-btn" onclick="showCart()">
-                    <span class="action-icon">🛒</span>
-                    <span class="cart-badge" id="cart-badge">0</span>
-                </div>
-            </div>
-        </div>
+// Инициализация Telegram Web App
+const tg = window.Telegram.WebApp;
+tg.expand();
+tg.ready();
+
+// Получаем данные пользователя из Telegram
+const tgUser = tg.initDataUnsafe?.user || {};
+
+let cart = [];
+let favorites = [];
+let orders = [];
+
+// Эмодзи для категорий
+const categoryEmojis = {
+    'Одноразки': '💨',
+    'Под-системы': '🔋',
+    'Жидкость': '💧',
+    'Расходники': '⚙️',
+    'Жевательный табак': '🌿',
+    'Кальяны': '🪝'
+};
+
+const productEmoji = '📦';
+
+// ========== ЗАГРУЗКА КАТЕГОРИЙ ==========
+async function loadCategories() {
+    try {
+        const response = await fetch('/api/categories');
+        const categories = await response.json();
         
-        <div class="banner">
-            <div class="banner-content">
-                <div class="banner-title">CLOUD SHOP</div>
-                <div class="banner-subtitle">Лучшие цены в Екб</div>
-            </div>
-        </div>
+        const grid = document.getElementById('categories-grid');
         
-        <h2 class="section-title">Категории</h2>
-        <div class="categories-grid" id="categories-grid">
-            <div class="loading">Загрузка...</div>
-        </div>
-    </div>
-
-    <!-- Страница категории -->
-    <div id="category-page" class="page">
-        <div class="top-bar">
-            <button class="back-btn" onclick="goHome()">← Назад</button>
-            <h2 id="category-title">Категория</h2>
-        </div>
-        <div class="products-grid" id="products-grid">
-            <div class="loading">Загрузка товаров...</div>
-        </div>
-    </div>
-
-    <!-- Страница корзины -->
-    <div id="cart-page" class="page">
-        <div class="top-bar">
-            <button class="back-btn" onclick="goHome()">← Назад</button>
-            <h2>🛒 Корзина</h2>
-        </div>
-        <div id="cart-items">
-            <div class="empty-cart">Корзина пуста</div>
-        </div>
-        <div class="cart-footer">
-            <div class="cart-total">Итого: <span id="total-price">0</span> ₽</div>
-            <button class="checkout-btn" onclick="checkout()">Оформить заказ</button>
-        </div>
-    </div>
-
-    <!-- Страница профиля -->
-    <div id="profile-page" class="page">
-        <div class="top-bar">
-            <button class="back-btn" onclick="goHome()">← Назад</button>
-            <h2>👤 Профиль</h2>
-        </div>
-        <div class="profile-content">
-            <div class="profile-avatar" id="profile-avatar">👤</div>
-            <div class="profile-name" id="profile-name">Гость</div>
-            <div class="profile-username" id="profile-username">@username</div>
-            
-            <div class="profile-stats">
-                <div class="stat-item">
-                    <div class="stat-value" id="stat-orders">0</div>
-                    <div class="stat-label">Заказов</div>
+        if (categories.length === 0) {
+            grid.innerHTML = '<div class="loading">Категории не найдены</div>';
+            return;
+        }
+        
+        grid.innerHTML = categories.map(cat => {
+            const emoji = categoryEmojis[cat.name] || '📦';
+            return `
+                <div class="category-card" onclick="openCategory('${cat.name}')">
+                    <div class="emoji">${emoji}</div>
+                    <div class="name">${cat.name}</div>
                 </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="stat-spent">0 ₽</div>
-                    <div class="stat-label">Потрачено</div>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('Ошибка загрузки категорий:', error);
+        document.getElementById('categories-grid').innerHTML = 
+            '<div class="loading">Ошибка загрузки. Проверьте соединение.</div>';
+    }
+}
+
+// ========== ОТКРЫТЬ КАТЕГОРИЮ ==========
+async function openCategory(category) {
+    document.getElementById('category-title').textContent = category;
+    showPage('category-page');
+    
+    const grid = document.getElementById('products-grid');
+    grid.innerHTML = '<div class="loading">Загрузка товаров...</div>';
+    
+    try {
+        const response = await fetch(`/api/products/${encodeURIComponent(category)}`);
+        const products = await response.json();
+        
+        if (products.length === 0) {
+            grid.innerHTML = '<div class="loading">Товары не найдены</div>';
+            return;
+        }
+        
+        grid.innerHTML = products.map(p => {
+            const isFav = favorites.includes(p.id);
+            return `
+                <div class="product-card">
+                    <div class="img-placeholder">
+                        ${productEmoji}
+                        <span class="favorite" onclick="toggleFavorite(${p.id}, this, event)">${isFav ? '❤️' : '🤍'}</span>
+                    </div>
+                    <div class="info">
+                        <div class="name">${p.name}</div>
+                        <div class="desc">${p.description}</div>
+                        <div class="price">${p.price} ₽</div>
+                        <button class="add-to-cart-btn" onclick="addToCart(${p.id}, '${p.name.replace(/'/g, "\\'")}', ${p.price})">
+                            Добавить в корзину
+                        </button>
+                    </div>
                 </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="stat-favorites">0</div>
-                    <div class="stat-label">Избранное</div>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('Ошибка загрузки товаров:', error);
+        grid.innerHTML = '<div class="loading">Ошибка загрузки товаров</div>';
+    }
+}
+
+// ========== КОРЗИНА ==========
+function addToCart(id, name, price) {
+    const existing = cart.find(item => item.id === id);
+    if (existing) {
+        existing.quantity++;
+    } else {
+        cart.push({ id, name, price, quantity: 1 });
+    }
+    
+    if (tg.HapticFeedback) {
+        tg.HapticFeedback.notificationOccurred('success');
+    }
+    
+    showToast(`✅ ${name} добавлен в корзину`);
+    updateCartBadge();
+}
+
+function showCart() {
+    const container = document.getElementById('cart-items');
+    
+    if (cart.length === 0) {
+        container.innerHTML = '<div class="empty-cart">🛒<br><br>Корзина пуста<br><br>Добавьте товары из каталога</div>';
+    } else {
+        container.innerHTML = cart.map(item => `
+            <div class="cart-item">
+                <div class="emoji">${productEmoji}</div>
+                <div class="info">
+                    <div class="name">${item.name}</div>
+                    <div class="price">${item.price} ₽</div>
+                </div>
+                <div class="qty-controls">
+                    <button class="qty-btn" onclick="changeQty(${item.id}, -1)">−</button>
+                    <span class="qty-value">${item.quantity}</span>
+                    <button class="qty-btn" onclick="changeQty(${item.id}, 1)">+</button>
                 </div>
             </div>
-            
-            <div class="profile-menu">
-                <div class="menu-item" onclick="showCart()">
-                    <span class="menu-icon">🛒</span>
-                    <span class="menu-text">Мои заказы</span>
-                    <span class="menu-arrow">›</span>
-                </div>
-                <div class="menu-item" onclick="showFavorites()">
-                    <span class="menu-icon">❤️</span>
-                    <span class="menu-text">Избранное</span>
-                    <span class="menu-arrow">›</span>
-                </div>
-                <div class="menu-item" onclick="openSupport()">
-                    <span class="menu-icon"></span>
-                    <span class="menu-text">Поддержка</span>
-                    <span class="menu-arrow">›</span>
-                </div>
-                <div class="menu-item" onclick="showAbout()">
-                    <span class="menu-icon">️</span>
-                    <span class="menu-text">О магазине</span>
-                    <span class="menu-arrow">›</span>
-                </div>
-            </div>
-        </div>
-    </div>
+        `).join('');
+    }
+    
+    updateTotal();
+    showPage('cart-page');
+}
 
-    <script src="/static/app.js"></script>
-</body>
-</html>
+function changeQty(id, delta) {
+    const item = cart.find(i => i.id === id);
+    if (item) {
+        item.quantity += delta;
+        if (item.quantity <= 0) {
+            cart = cart.filter(i => i.id !== id);
+        }
+        showCart();
+        updateCartBadge();
+        
+        if (tg.HapticFeedback) {
+            tg.HapticFeedback.selectionChanged();
+        }
+    }
+}
+
+function updateTotal() {
+    const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    document.getElementById('total-price').textContent = total;
+}
+
+function updateCartBadge() {
+    const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+    const badge = document.getElementById('cart-badge');
+    if (badge) {
+        badge.textContent = totalItems;
+        if (totalItems > 0) {
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+}
+
+// ========== ОФОРМЛЕНИЕ ЗАКАЗА ==========
+function checkout() {
+    if (cart.length === 0) {
+        showToast(' Корзина пуста');
+        return;
+    }
+    
+    const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const data = {
+        type: 'order',
+        items: cart,
+        total: total
+    };
+    
+    if (tg.HapticFeedback) {
+        tg.HapticFeedback.notificationOccurred('success');
+    }
+    
+    // Сохраняем заказ локально
+    orders.push({
+        date: new Date().toISOString(),
+        items: [...cart],
+        total: total
+    });
+    
+    // Очищаем корзину
+    cart = [];
+    updateCartBadge();
+    
+    // Отправляем данные боту
+    tg.sendData(JSON.stringify(data));
+}
+
+// ========== ПРОФИЛЬ ==========
+function showProfile() {
+    // Заполняем данные пользователя из Telegram
+    const name = tgUser.first_name ? `${tgUser.first_name} ${tgUser.last_name || ''}`.trim() : 'Гость';
+    const username = tgUser.username ? `@${tgUser.username}` : '@неизвестно';
+    
+    document.getElementById('profile-name').textContent = name;
+    document.getElementById('profile-username').textContent = username;
+    document.getElementById('profile-avatar').textContent = name.charAt(0).toUpperCase();
+    
+    // Статистика
+    document.getElementById('stat-orders').textContent = orders.length;
+    const totalSpent = orders.reduce((sum, o) => sum + o.total, 0);
+    document.getElementById('stat-spent').textContent = `${totalSpent} ₽`;
+    document.getElementById('stat-favorites').textContent = favorites.length;
+    
+    showPage('profile-page');
+}
+
+function showFavorites() {
+    if (favorites.length === 0) {
+        showToast('❤️ Избранное пусто');
+        return;
+    }
+    showToast(`❤️ В избранном: ${favorites.length} товаров`);
+}
+
+function openSupport() {
+    // Открываем чат с менеджером
+    if (tg.openTelegramLink) {
+        tg.openTelegramLink('https://t.me/your_manager');  // ЗАМЕНИ на свой username!
+    } else {
+        showToast('💬 Поддержка: @your_manager');
+    }
+}
+
+function showAbout() {
+    showToast('ℹ️ CloudShop — лучший магазин в Екб');
+}
+
+// ========== ИЗБРАННОЕ ==========
+function toggleFavorite(id, element, event) {
+    event.stopPropagation();
+    
+    const idx = favorites.indexOf(id);
+    if (idx === -1) {
+        favorites.push(id);
+        element.textContent = '❤️';
+        showToast('❤️ Добавлено в избранное');
+    } else {
+        favorites.splice(idx, 1);
+        element.textContent = '🤍';
+        showToast('Удалено из избранного');
+    }
+    
+    if (tg.HapticFeedback) {
+        tg.HapticFeedback.selectionChanged();
+    }
+}
+
+// ========== НАВИГАЦИЯ ==========
+function showPage(pageId) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById(pageId).classList.add('active');
+    window.scrollTo(0, 0);
+}
+
+function goHome() {
+    showPage('home-page');
+}
+
+// ========== УВЕДОМЛЕНИЯ ==========
+function showToast(message) {
+    const existing = document.querySelector('.toast');
+    if (existing) existing.remove();
+    
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => toast.remove(), 2000);
+}
+
+// ========== ПОИСК ==========
+document.getElementById('search-input')?.addEventListener('input', function(e) {
+    const query = e.target.value.toLowerCase();
+    console.log('Поиск:', query);
+});
+
+// ========== ЗАПУСК ==========
+loadCategories();
+updateCartBadge();
