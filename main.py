@@ -82,7 +82,11 @@ def create_web_app():
 
 # ========== TELEGRAM БОТ ==========
 bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher()
+storage = MemoryStorage()  # Хранилище для FSM
+dp = Dispatcher(storage=storage)  # Передаём storage в Dispatcher
+
+# Регистрируем роутеры (порядок важен!)
+dp.include_router(admin_router)  # Админка ПЕРВОЙ (чтобы перехватывала команды)
 
 START_TEXT = """🔥 Поехали без лирики:
 — Стартовые наборы? Есть.
@@ -98,29 +102,11 @@ async def cmd_start(message: types.Message):
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="🛍 Открыть приложение", web_app=WebAppInfo(url=webapp_url))],
-            [KeyboardButton(text=" Связаться с менеджером", url="https://t.me/your_manager")]
+            [KeyboardButton(text="📞 Связаться с менеджером", url="https://t.me/your_manager")]
         ],
         resize_keyboard=True
     )
     await message.answer(START_TEXT, reply_markup=keyboard)
-
-@dp.message(F.web_app_data)
-async def handle_webapp_data(message: types.Message):
-    try:
-        data = json.loads(message.web_app_data.data)
-        if data.get("type") == "order":
-            order_text = f"🛒 НОВЫЙ ЗАКАЗ\n\n👤 {message.from_user.full_name}\n📱 @{message.from_user.username}\n\n📦 Состав:\n"
-            total = 0
-            for item in data["items"]:
-                item_sum = item["price"] * item["quantity"]
-                total += item_sum
-                order_text += f"• {item['name']} x{item['quantity']} = {item_sum}₽\n"
-            order_text += f"\n💰 Итого: {total}₽"
-            await message.answer("✅ Заказ принят! Менеджер свяжется с вами.")
-            await bot.send_message(ADMIN_ID, order_text)
-    except Exception as e:
-        print(f"Ошибка обработки заказа: {e}")
-
 # ========== ЗАПУСК ==========
 async def main():
     await init_db()
