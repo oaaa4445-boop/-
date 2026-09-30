@@ -3,13 +3,12 @@ const tg = window.Telegram.WebApp;
 tg.expand();
 tg.ready();
 
-// Применяем тему Telegram
-if (tg.colorScheme === 'dark') {
-    document.body.style.background = '#0f0f1e';
-}
+// Получаем данные пользователя из Telegram
+const tgUser = tg.initDataUnsafe?.user || {};
 
 let cart = [];
-let currentCategory = '';
+let favorites = [];
+let orders = [];
 
 // Эмодзи для категорий
 const categoryEmojis = {
@@ -17,11 +16,10 @@ const categoryEmojis = {
     'Под-системы': '🔋',
     'Жидкость': '💧',
     'Расходники': '⚙️',
-    'Жевательный табак': '',
-    'Кальяны': ''
+    'Жевательный табак': '🌿',
+    'Кальяны': '🪝'
 };
 
-// Эмодзи для товаров (заглушка)
 const productEmoji = '📦';
 
 // ========== ЗАГРУЗКА КАТЕГОРИЙ ==========
@@ -55,7 +53,6 @@ async function loadCategories() {
 
 // ========== ОТКРЫТЬ КАТЕГОРИЮ ==========
 async function openCategory(category) {
-    currentCategory = category;
     document.getElementById('category-title').textContent = category;
     showPage('category-page');
     
@@ -71,22 +68,25 @@ async function openCategory(category) {
             return;
         }
         
-        grid.innerHTML = products.map(p => `
-            <div class="product-card">
-                <div class="img-placeholder">
-                    ${productEmoji}
-                    <span class="favorite" onclick="toggleFavorite(this, event)"></span>
+        grid.innerHTML = products.map(p => {
+            const isFav = favorites.includes(p.id);
+            return `
+                <div class="product-card">
+                    <div class="img-placeholder">
+                        ${productEmoji}
+                        <span class="favorite" onclick="toggleFavorite(${p.id}, this, event)">${isFav ? '❤️' : '🤍'}</span>
+                    </div>
+                    <div class="info">
+                        <div class="name">${p.name}</div>
+                        <div class="desc">${p.description}</div>
+                        <div class="price">${p.price} ₽</div>
+                        <button class="add-to-cart-btn" onclick="addToCart(${p.id}, '${p.name.replace(/'/g, "\\'")}', ${p.price})">
+                            Добавить в корзину
+                        </button>
+                    </div>
                 </div>
-                <div class="info">
-                    <div class="name">${p.name}</div>
-                    <div class="desc">${p.description}</div>
-                    <div class="price">${p.price} ₽</div>
-                    <button class="add-to-cart-btn" onclick="addToCart(${p.id}, '${p.name.replace(/'/g, "\\'")}', ${p.price})">
-                        Добавить в корзину
-                    </button>
-                </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     } catch (error) {
         console.error('Ошибка загрузки товаров:', error);
         grid.innerHTML = '<div class="loading">Ошибка загрузки товаров</div>';
@@ -102,7 +102,6 @@ function addToCart(id, name, price) {
         cart.push({ id, name, price, quantity: 1 });
     }
     
-    // Вибрация (если поддерживается)
     if (tg.HapticFeedback) {
         tg.HapticFeedback.notificationOccurred('success');
     }
@@ -160,8 +159,15 @@ function updateTotal() {
 
 function updateCartBadge() {
     const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-    // Можно добавить бейдж на иконку корзины, если она есть в header
-    console.log(`Товаров в корзине: ${totalItems}`);
+    const badge = document.getElementById('cart-badge');
+    if (badge) {
+        badge.textContent = totalItems;
+        if (totalItems > 0) {
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
 }
 
 // ========== ОФОРМЛЕНИЕ ЗАКАЗА ==========
@@ -182,8 +188,79 @@ function checkout() {
         tg.HapticFeedback.notificationOccurred('success');
     }
     
+    // Сохраняем заказ локально
+    orders.push({
+        date: new Date().toISOString(),
+        items: [...cart],
+        total: total
+    });
+    
+    // Очищаем корзину
+    cart = [];
+    updateCartBadge();
+    
     // Отправляем данные боту
     tg.sendData(JSON.stringify(data));
+}
+
+// ========== ПРОФИЛЬ ==========
+function showProfile() {
+    // Заполняем данные пользователя из Telegram
+    const name = tgUser.first_name ? `${tgUser.first_name} ${tgUser.last_name || ''}`.trim() : 'Гость';
+    const username = tgUser.username ? `@${tgUser.username}` : '@неизвестно';
+    
+    document.getElementById('profile-name').textContent = name;
+    document.getElementById('profile-username').textContent = username;
+    document.getElementById('profile-avatar').textContent = name.charAt(0).toUpperCase();
+    
+    // Статистика
+    document.getElementById('stat-orders').textContent = orders.length;
+    const totalSpent = orders.reduce((sum, o) => sum + o.total, 0);
+    document.getElementById('stat-spent').textContent = `${totalSpent} ₽`;
+    document.getElementById('stat-favorites').textContent = favorites.length;
+    
+    showPage('profile-page');
+}
+
+function showFavorites() {
+    if (favorites.length === 0) {
+        showToast('❤️ Избранное пусто');
+        return;
+    }
+    showToast(`❤️ В избранном: ${favorites.length} товаров`);
+}
+
+function openSupport() {
+    // Открываем чат с менеджером
+    if (tg.openTelegramLink) {
+        tg.openTelegramLink('https://t.me/your_manager');  // ЗАМЕНИ на свой username!
+    } else {
+        showToast('💬 Поддержка: @your_manager');
+    }
+}
+
+function showAbout() {
+    showToast('ℹ️ CloudShop — лучший магазин в Екб');
+}
+
+// ========== ИЗБРАННОЕ ==========
+function toggleFavorite(id, element, event) {
+    event.stopPropagation();
+    
+    const idx = favorites.indexOf(id);
+    if (idx === -1) {
+        favorites.push(id);
+        element.textContent = '❤️';
+        showToast('❤️ Добавлено в избранное');
+    } else {
+        favorites.splice(idx, 1);
+        element.textContent = '🤍';
+        showToast('Удалено из избранного');
+    }
+    
+    if (tg.HapticFeedback) {
+        tg.HapticFeedback.selectionChanged();
+    }
 }
 
 // ========== НАВИГАЦИЯ ==========
@@ -195,24 +272,6 @@ function showPage(pageId) {
 
 function goHome() {
     showPage('home-page');
-}
-
-function showProfile() {
-    showToast('👤 Профиль в разработке');
-}
-
-function toggleFavorite(element, event) {
-    event.stopPropagation();
-    if (element.textContent === '') {
-        element.textContent = '❤️';
-        showToast('❤️ Добавлено в избранное');
-    } else {
-        element.textContent = '🤍';
-    }
-    
-    if (tg.HapticFeedback) {
-        tg.HapticFeedback.selectionChanged();
-    }
 }
 
 // ========== УВЕДОМЛЕНИЯ ==========
@@ -231,9 +290,9 @@ function showToast(message) {
 // ========== ПОИСК ==========
 document.getElementById('search-input')?.addEventListener('input', function(e) {
     const query = e.target.value.toLowerCase();
-    // Здесь можно добавить логику поиска по товарам
     console.log('Поиск:', query);
 });
 
 // ========== ЗАПУСК ==========
 loadCategories();
+updateCartBadge();
