@@ -4,7 +4,6 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 import aiosqlite
-import json
 
 router = Router()
 
@@ -20,16 +19,15 @@ class SendMessage(StatesGroup):
 
 # ========== АДМИН-МЕНЮ ==========
 def admin_menu():
-    keyboard = ReplyKeyboardMarkup(
+    return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="➕ Добавить товар"), KeyboardButton(text="📋 Список товаров")],
-            [KeyboardButton(text="📦 Заказы"), KeyboardButton(text=" Статистика")],
+            [KeyboardButton(text="📦 Заказы"), KeyboardButton(text="📊 Статистика")],
             [KeyboardButton(text="📢 Рассылка"), KeyboardButton(text="👥 Пользователи")],
             [KeyboardButton(text="❌ Закрыть админку")]
         ],
         resize_keyboard=True
     )
-    return keyboard
 
 def close_admin_btn():
     return ReplyKeyboardMarkup(
@@ -41,28 +39,33 @@ def close_admin_btn():
 def is_admin(user_id: int, admin_id: int) -> bool:
     return user_id == admin_id
 
+def get_admin_id(router_obj):
+    """Получаем ADMIN_ID из роутера"""
+    return getattr(router_obj, 'admin_id', None)
+
+def get_bot(router_obj):
+    """Получаем bot из роутера"""
+    return getattr(router_obj, 'bot', None)
+
 # ========== ОБРАБОТЧИКИ ==========
 
 @router.message(Command("admin"))
 async def cmd_admin(message: types.Message, state: FSMContext):
-    """Открыть админ-панель"""
-    from main import ADMIN_ID  # импортируем из main
+    admin_id = get_admin_id(router)
     
-    if not is_admin(message.from_user.id, ADMIN_ID):
+    if not is_admin(message.from_user.id, admin_id):
         await message.answer("⛔ У вас нет прав администратора")
         return
     
     await state.clear()
     await message.answer(
-        "⚙️ <b>Панель администратора</b>\n\n"
-        "Выберите действие:",
+        "️ <b>Панель администратора</b>\n\nВыберите действие:",
         reply_markup=admin_menu(),
         parse_mode="HTML"
     )
 
 @router.message(F.text == "❌ Закрыть админку")
 async def close_admin(message: types.Message, state: FSMContext):
-    """Закрыть админку"""
     await state.clear()
     await message.answer(
         "👋 Админ-панель закрыта",
@@ -73,15 +76,13 @@ async def close_admin(message: types.Message, state: FSMContext):
 
 @router.message(F.text == "➕ Добавить товар")
 async def start_add_product(message: types.Message, state: FSMContext):
-    from main import ADMIN_ID
-    
-    if not is_admin(message.from_user.id, ADMIN_ID):
+    admin_id = get_admin_id(router)
+    if not is_admin(message.from_user.id, admin_id):
         return
     
     await state.set_state(AddProduct.waiting_for_name)
     await message.answer(
-        "➕ <b>Добавление товара</b>\n\n"
-        "Введите название товара:",
+        "➕ <b>Добавление товара</b>\n\nВведите название товара:",
         reply_markup=close_admin_btn(),
         parse_mode="HTML"
     )
@@ -124,7 +125,6 @@ async def process_category(callback: types.CallbackQuery, state: FSMContext):
     category = callback.data.replace("cat_", "")
     data = await state.get_data()
     
-    # Добавляем товар в БД
     async with aiosqlite.connect("cloudshop.db") as db:
         await db.execute(
             "INSERT INTO products (category, name, description, price, image, flavors) VALUES (?, ?, ?, ?, ?, ?)",
@@ -136,9 +136,9 @@ async def process_category(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
         f"✅ <b>Товар добавлен!</b>\n\n"
         f"📦 Название: {data['name']}\n"
-        f" Описание: {data['description']}\n"
+        f"📝 Описание: {data['description']}\n"
         f"💰 Цена: {data['price']} ₽\n"
-        f" Категория: {category}",
+        f"📂 Категория: {category}",
         parse_mode="HTML",
         reply_markup=admin_menu()
     )
@@ -154,9 +154,8 @@ async def cancel_add(callback: types.CallbackQuery, state: FSMContext):
 
 @router.message(F.text == "📋 Список товаров")
 async def list_products(message: types.Message):
-    from main import ADMIN_ID
-    
-    if not is_admin(message.from_user.id, ADMIN_ID):
+    admin_id = get_admin_id(router)
+    if not is_admin(message.from_user.id, admin_id):
         return
     
     async with aiosqlite.connect("cloudshop.db") as db:
@@ -170,10 +169,10 @@ async def list_products(message: types.Message):
     text = "📋 <b>Список товаров:</b>\n\n"
     keyboard = InlineKeyboardMarkup(inline_keyboard=[])
     
-    for p in products[:20]:  # показываем последние 20
+    for p in products[:20]:
         text += f"ID: {p[0]} | {p[1]} — {p[2]}₽ ({p[3]})\n"
         keyboard.inline_keyboard.append([
-            InlineKeyboardButton(text=f"🗑 {p[1]}", callback_data=f"del_{p[0]}")
+            InlineKeyboardButton(text=f"🗑 {p[1][:20]}", callback_data=f"del_{p[0]}")
         ])
     
     keyboard.inline_keyboard.append([InlineKeyboardButton(text="◀️ Назад", callback_data="back_admin")])
@@ -193,21 +192,19 @@ async def delete_product(callback: types.CallbackQuery):
 
 @router.callback_query(F.data == "back_admin")
 async def back_to_admin(callback: types.CallbackQuery):
-    await callback.message.edit_text("️ Панель администратора", reply_markup=admin_menu())
+    await callback.message.edit_text("⚙️ Панель администратора", reply_markup=admin_menu())
     await callback.answer()
 
 # ========== ЗАКАЗЫ ==========
 
-@router.message(F.text == "📦 Заказы")
+@router.message(F.text == " Заказы")
 async def show_orders(message: types.Message):
-    from main import ADMIN_ID
-    
-    if not is_admin(message.from_user.id, ADMIN_ID):
+    admin_id = get_admin_id(router)
+    if not is_admin(message.from_user.id, admin_id):
         return
     
-    # Пока просто заглушка - заказы приходят в личку
     await message.answer(
-        " <b>Последние заказы</b>\n\n"
+        "📦 <b>Последние заказы</b>\n\n"
         "Заказы приходят вам в личные сообщения от бота.\n"
         "В следующей версии здесь будет список всех заказов.",
         reply_markup=admin_menu(),
@@ -218,9 +215,8 @@ async def show_orders(message: types.Message):
 
 @router.message(F.text == "📊 Статистика")
 async def show_stats(message: types.Message):
-    from main import ADMIN_ID
-    
-    if not is_admin(message.from_user.id, ADMIN_ID):
+    admin_id = get_admin_id(router)
+    if not is_admin(message.from_user.id, admin_id):
         return
     
     async with aiosqlite.connect("cloudshop.db") as db:
@@ -228,13 +224,14 @@ async def show_stats(message: types.Message):
             products_count = (await cursor.fetchone())[0]
         async with db.execute("SELECT COUNT(*) FROM categories") as cursor:
             categories_count = (await cursor.fetchone())[0]
+        async with db.execute("SELECT COUNT(*) FROM users") as cursor:
+            users_count = (await cursor.fetchone())[0]
     
     text = (
         "📊 <b>Статистика магазина</b>\n\n"
-        f" Товаров: {products_count}\n"
+        f"📦 Товаров: {products_count}\n"
         f"📂 Категорий: {categories_count}\n"
-        f"👥 Пользователей: (в разработке)\n"
-        f"🛒 Заказов: (в разработке)"
+        f"👥 Пользователей: {users_count}"
     )
     
     await message.answer(text, reply_markup=admin_menu(), parse_mode="HTML")
@@ -243,9 +240,8 @@ async def show_stats(message: types.Message):
 
 @router.message(F.text == "📢 Рассылка")
 async def start_broadcast(message: types.Message, state: FSMContext):
-    from main import ADMIN_ID
-    
-    if not is_admin(message.from_user.id, ADMIN_ID):
+    admin_id = get_admin_id(router)
+    if not is_admin(message.from_user.id, admin_id):
         return
     
     await state.set_state(SendMessage.waiting_for_text)
@@ -259,31 +255,58 @@ async def start_broadcast(message: types.Message, state: FSMContext):
 
 @router.message(SendMessage.waiting_for_text)
 async def process_broadcast(message: types.Message, state: FSMContext):
-    from main import ADMIN_ID, bot
+    admin_id = get_admin_id(router)
+    if not is_admin(message.from_user.id, admin_id):
+        return
     
+    text = message.text
     await state.clear()
     
-    # Пока заглушка - в реальной версии нужно хранить список пользователей в БД
+    # Получаем список всех пользователей
+    async with aiosqlite.connect("cloudshop.db") as db:
+        async with db.execute("SELECT user_id FROM users") as cursor:
+            rows = await cursor.fetchall()
+            user_ids = [r[0] for r in rows]
+    
+    bot = get_bot(router)
+    sent = 0
+    failed = 0
+    
+    await message.answer(f"📢 Начинаю рассылку {len(user_ids)} пользователям...")
+    
+    for user_id in user_ids:
+        try:
+            await bot.send_message(user_id, text)
+            sent += 1
+        except Exception:
+            failed += 1
+    
     await message.answer(
-        "📢 <b>Рассылка</b>\n\n"
-        "Функция в разработке. Нужно добавить таблицу пользователей в БД.\n"
-        "Сообщение сохранено для отправки позже.",
-        reply_markup=admin_menu(),
-        parse_mode="HTML"
+        f"✅ Рассылка завершена!\n\n"
+        f"📤 Отправлено: {sent}\n"
+        f"❌ Ошибок: {failed}",
+        reply_markup=admin_menu()
     )
 
 # ========== ПОЛЬЗОВАТЕЛИ ==========
 
 @router.message(F.text == "👥 Пользователи")
 async def show_users(message: types.Message):
-    from main import ADMIN_ID
-    
-    if not is_admin(message.from_user.id, ADMIN_ID):
+    admin_id = get_admin_id(router)
+    if not is_admin(message.from_user.id, admin_id):
         return
     
-    await message.answer(
-        "👥 <b>Пользователи</b>\n\n"
-        "Функция в разработке. Нужно добавить таблицу users в БД.",
-        reply_markup=admin_menu(),
-        parse_mode="HTML"
-    )
+    async with aiosqlite.connect("cloudshop.db") as db:
+        async with db.execute("SELECT user_id, username, full_name FROM users ORDER BY created_at DESC LIMIT 20") as cursor:
+            users = await cursor.fetchall()
+    
+    if not users:
+        await message.answer("👥 Пользователей пока нет", reply_markup=admin_menu())
+        return
+    
+    text = "👥 <b>Последние пользователи:</b>\n\n"
+    for u in users:
+        username = f"@{u[1]}" if u[1] else "без username"
+        text += f"• {u[2]} ({username}) — ID: {u[0]}\n"
+    
+    await message.answer(text, reply_markup=admin_menu(), parse_mode="HTML")
