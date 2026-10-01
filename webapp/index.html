@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CloudShop</title>
+    <title>PUFFY</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
@@ -18,7 +18,8 @@
         .profile-btn { width: 44px; height: 44px; background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
         .cart-btn-main { flex: 1; height: 48px; background: linear-gradient(135deg, #0088ff, #0066dd); border: none; border-radius: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; color: #fff; font-weight: 700; font-size: 15px; box-shadow: 0 4px 15px rgba(0,136,255,0.4); }
         .banner { border-radius: 16px; margin-bottom: 24px; background: linear-gradient(135deg, #1e3c72, #7e22ce); height: 180px; display: flex; align-items: center; justify-content: center; }
-        .banner-title { font-size: 42px; font-weight: 900; color: #fff; letter-spacing: 3px; }
+        .banner-title { font-size: 48px; font-weight: 900; color: #fff; letter-spacing: 4px; text-shadow: 0 0 30px rgba(255,255,255,0.3); }
+        .banner-subtitle { font-size: 13px; color: rgba(255,255,255,0.7); letter-spacing: 2px; margin-top: 8px; text-align: center; }
         .section-title { font-size: 20px; font-weight: 700; margin-bottom: 16px; }
         .categories-grid, .products-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .category-card { background: #1a1a2e; border-radius: 16px; height: 140px; display: flex; align-items: flex-end; border: 1px solid #2a2a4a; cursor: pointer; position: relative; overflow: hidden; }
@@ -78,11 +79,16 @@
         <div class="header">
             <div class="search-bar"><span>🔍</span><input type="text" placeholder="Поиск товаров" id="search-input"></div>
             <div class="header-actions">
-                <div class="profile-btn" onclick="showProfile()"><span>👤</span></div>
-                <div class="cart-btn-main" onclick="showCart()"><span></span><span>Корзина</span></div>
+                <div class="profile-btn" onclick="showProfile()"><span></span></div>
+                <div class="cart-btn-main" onclick="showCart()"><span>🛒</span><span>Корзина</span></div>
             </div>
         </div>
-        <div class="banner"><div class="banner-title">CLOUD SHOP</div></div>
+        <div class="banner">
+            <div>
+                <div class="banner-title">PUFFY</div>
+                <div class="banner-subtitle">curated vape & hookah shop</div>
+            </div>
+        </div>
         <h2 class="section-title">Категории</h2>
         <div class="categories-grid" id="categories-grid"><div class="loading">Загрузка...</div></div>
     </div>
@@ -128,7 +134,7 @@
                 <div class="menu-item" onclick="showCart()"><span class="menu-icon">🛒</span><span class="menu-text">Корзина</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="showFavorites()"><span class="menu-icon">❤️</span><span class="menu-text">Избранное</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="openSupport()"><span class="menu-icon">💬</span><span class="menu-text">Поддержка</span><span class="menu-arrow">›</span></div>
-                <div class="menu-item" onclick="showAbout()"><span class="menu-icon">ℹ️</span><span class="menu-text">О магазине</span><span class="menu-arrow">›</span></div>
+                <div class="menu-item" onclick="showAbout()"><span class="menu-icon">️</span><span class="menu-text">О магазине</span><span class="menu-arrow">›</span></div>
             </div>
         </div>
     </div>
@@ -156,7 +162,7 @@
         loadOrdersFromStorage();
 
         const MANAGER_USERNAME = 'ghjkIz';
-        const categoryEmojis = {'Одноразки': '💨', 'Под-системы': '🔋', 'Жидкость': '💧', 'Расходники': '️', 'Жевательный табак': '🌿', 'Кальяны': ''};
+        const categoryEmojis = {'Одноразки': '💨', 'Под-системы': '🔋', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
 
         async function loadCategories() {
             try {
@@ -170,7 +176,7 @@
                     if (hasImage) {
                         imgHtml = '<img class="cat-img" src="' + cat.image + '" alt="' + cat.name + '" onerror="this.style.display=\'none\'; this.parentElement.querySelector(\'.cat-emoji-fallback\').style.display=\'block\';">';
                     }
-                    const emoji = categoryEmojis[cat.name] || '📦';
+                    const emoji = categoryEmojis[cat.name] || '';
                     const fallbackStyle = hasImage ? 'display:none;' : 'display:block;';
                     return '<div class="category-card" onclick="openCategory(\'' + cat.name + '\')">' + imgHtml + '<div class="cat-emoji-fallback" style="' + fallbackStyle + '">' + emoji + '</div><div class="cat-overlay"></div><div class="name">' + cat.name + '</div></div>';
                 }).join('');
@@ -332,7 +338,7 @@
         }
 
         function openSupport() { if (tg.openTelegramLink) tg.openTelegramLink('https://t.me/' + MANAGER_USERNAME); else showToast('💬 @' + MANAGER_USERNAME); }
-        function showAbout() { showToast('ℹ️ CloudShop — лучший магазин в Екб'); }
+        function showAbout() { showToast('ℹ️ PUFFY — curated vape & hookah shop'); }
 
         function toggleFavorite(id, element, event) {
             event.stopPropagation();
