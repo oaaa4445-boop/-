@@ -66,7 +66,6 @@ async def get_all_categories():
     return await get_categories()
 
 async def add_category(name, image_url):
-    """Добавить новую категорию с фото"""
     conn = await get_db()
     try:
         row = await conn.fetchrow("SELECT MAX(id) as max_id FROM categories")
@@ -80,7 +79,6 @@ async def add_category(name, image_url):
         await conn.close()
 
 async def delete_category(category_id):
-    """Удалить категорию. Возвращает (success, products_count)"""
     conn = await get_db()
     try:
         count = await conn.fetchval("SELECT COUNT(*) FROM products WHERE category = (SELECT name FROM categories WHERE id=$1)", category_id)
@@ -109,6 +107,26 @@ async def get_products_by_ids(ids):
     conn = await get_db()
     try:
         rows = await conn.fetch("SELECT * FROM products WHERE id = ANY($1::int[])", list(ids))
+        return [{
+            "id": r['id'], "category": r['category'], "name": r['name'],
+            "description": r['description'], "price": r['price'],
+            "image": r['image'], "flavors": r['flavors']
+        } for r in rows]
+    finally:
+        await conn.close()
+
+async def search_products(query):
+    """Поиск товаров по названию и описанию"""
+    if not query or len(query.strip()) < 2:
+        return []
+    
+    conn = await get_db()
+    try:
+        search_pattern = f"%{query.lower()}%"
+        rows = await conn.fetch(
+            "SELECT * FROM products WHERE LOWER(name) LIKE $1 OR LOWER(description) LIKE $1",
+            search_pattern
+        )
         return [{
             "id": r['id'], "category": r['category'], "name": r['name'],
             "description": r['description'], "price": r['price'],
