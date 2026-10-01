@@ -20,9 +20,11 @@
         .banner-title { font-size: 42px; font-weight: 900; color: #fff; letter-spacing: 3px; }
         .section-title { font-size: 20px; font-weight: 700; margin-bottom: 16px; }
         .categories-grid, .products-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .category-card { background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: 16px; height: 120px; display: flex; align-items: flex-end; border: 1px solid #2a2a4a; cursor: pointer; position: relative; }
-        .category-card .emoji { position: absolute; top: 12px; left: 12px; font-size: 32px; }
-        .category-card .name { padding: 12px; font-size: 13px; font-weight: 600; width: 100%; background: linear-gradient(transparent, rgba(0,0,0,0.9)); }
+        .category-card { background: #1a1a2e; border-radius: 16px; height: 140px; display: flex; align-items: flex-end; border: 1px solid #2a2a4a; cursor: pointer; position: relative; overflow: hidden; }
+        .category-card .cat-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+        .category-card .cat-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(transparent 40%, rgba(0,0,0,0.9)); }
+        .category-card .cat-emoji-fallback { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 48px; opacity: 0.3; }
+        .category-card .name { padding: 12px; font-size: 14px; font-weight: 700; width: 100%; z-index: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
         .top-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #2a2a4a; }
         .back-btn { background: #1a1a2e; border: 1px solid #2a2a4a; color: #fff; padding: 8px 14px; border-radius: 10px; cursor: pointer; }
         .product-card { background: #1a1a2e; border-radius: 16px; overflow: hidden; border: 1px solid #2a2a4a; }
@@ -97,14 +99,13 @@
         </div>
     </div>
 
-    <!-- НОВАЯ СТРАНИЦА: ИЗБРАННОЕ -->
     <div id="favorites-page" class="page">
         <div class="top-bar"><button class="back-btn" onclick="goHome()">← Назад</button><h2>❤️ Избранное</h2></div>
         <div class="products-grid" id="favorites-grid"><div class="loading">Загрузка...</div></div>
     </div>
 
     <div id="profile-page" class="page">
-        <div class="top-bar"><button class="back-btn" onclick="goHome()">← Назад</button><h2> Профиль</h2></div>
+        <div class="top-bar"><button class="back-btn" onclick="goHome()">← Назад</button><h2>👤 Профиль</h2></div>
         <div class="profile-content">
             <div class="profile-avatar" id="profile-avatar"></div>
             <div class="profile-name" id="profile-name">Гость</div>
@@ -145,7 +146,7 @@
         loadOrdersFromStorage();
 
         const MANAGER_USERNAME = 'ghjkIz';
-        const categoryEmojis = {'Одноразки': '💨', 'Под-системы': '🔋', 'Жидкость': '💧', 'Расходники': '️', 'Жевательный табак': '🌿', 'Кальяны': ''};
+        const categoryEmojis = {'Одноразки': '💨', 'Под-системы': '', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
 
         async function loadCategories() {
             try {
@@ -154,8 +155,14 @@
                 const grid = document.getElementById('categories-grid');
                 if (categories.length === 0) { grid.innerHTML = '<div class="loading">Категории не найдены</div>'; return; }
                 grid.innerHTML = categories.map(cat => {
-                    const emoji = cat.image || categoryEmojis[cat.name] || '📦';
-                    return '<div class="category-card" onclick="openCategory(\'' + cat.name + '\')"><div class="emoji">' + emoji + '</div><div class="name">' + cat.name + '</div></div>';
+                    const hasImage = cat.image && cat.image.length > 5 && cat.image.startsWith('http');
+                    let imgHtml = '';
+                    if (hasImage) {
+                        imgHtml = '<img class="cat-img" src="' + cat.image + '" alt="' + cat.name + '" onerror="this.style.display=\'none\'; this.parentElement.querySelector(\'.cat-emoji-fallback\').style.display=\'block\';">';
+                    }
+                    const emoji = categoryEmojis[cat.name] || '📦';
+                    const fallbackStyle = hasImage ? 'display:none;' : 'display:block;';
+                    return '<div class="category-card" onclick="openCategory(\'' + cat.name + '\')">' + imgHtml + '<div class="cat-emoji-fallback" style="' + fallbackStyle + '">' + emoji + '</div><div class="cat-overlay"></div><div class="name">' + cat.name + '</div></div>';
                 }).join('');
             } catch (error) {
                 document.getElementById('categories-grid').innerHTML = '<div class="loading">Ошибка загрузки</div>';
@@ -171,13 +178,12 @@
                 const response = await fetch('/api/products/' + encodeURIComponent(category));
                 const products = await response.json();
                 if (products.length === 0) { grid.innerHTML = '<div class="loading">Товары не найдены</div>'; return; }
-                grid.innerHTML = products.map(p => renderProductCard(p)).join('');
+                grid.innerHTML = products.map(p => renderProductCard(p, false)).join('');
             } catch (error) {
                 grid.innerHTML = '<div class="loading">Ошибка загрузки</div>';
             }
         }
 
-        // Универсальная функция отрисовки карточки товара
         function renderProductCard(p, isFavoritePage) {
             const isFav = favorites.includes(p.id);
             const safeName = p.name.replace(/'/g, "\\'");
@@ -195,13 +201,12 @@
             return '<div class="product-card"><div class="img-container">' + imgHtml + '<div class="img-fallback" style="' + fallbackStyle + '">📦</div><span class="favorite" onclick="toggleFavorite(' + p.id + ', this, event)">' + favIcon + '</span></div><div class="info"><div class="name">' + p.name + '</div><div class="desc">' + p.description + '</div><div class="price">' + p.price + ' ₽</div>' + actionBtn + '</div></div>';
         }
 
-        // Загрузка избранного
         async function showFavorites() {
             showPage('favorites-page');
             const grid = document.getElementById('favorites-grid');
             
             if (favorites.length === 0) {
-                grid.innerHTML = '<div class="empty-favorites">❤️<br><br>Избранное пусто<br><br>Нажмите  на товаре чтобы добавить</div>';
+                grid.innerHTML = '<div class="empty-favorites">❤️<br><br>Избранное пусто<br><br>Нажмите 🤍 на товаре чтобы добавить</div>';
                 return;
             }
             
@@ -229,7 +234,7 @@
                 favorites.splice(idx, 1);
                 saveFavoritesToStorage();
                 showToast('Удалено из избранного');
-                showFavorites(); // Перезагружаем страницу
+                showFavorites();
             }
         }
 
@@ -262,7 +267,7 @@
         }
 
         function clearCart() {
-            if (cart.length === 0) { showToast('🛒 Корзина уже пуста'); return; }
+            if (cart.length === 0) { showToast(' Корзина уже пуста'); return; }
             if (confirm('Очистить корзину?')) { cart = []; saveCartToStorage(); showCart(); showToast('🗑 Корзина очищена'); }
         }
 
@@ -303,7 +308,7 @@
             event.stopPropagation();
             const idx = favorites.indexOf(id);
             if (idx === -1) { favorites.push(id); element.textContent = '❤️'; showToast('❤️ Добавлено в избранное'); }
-            else { favorites.splice(idx, 1); element.textContent = ''; showToast('Удалено из избранного'); }
+            else { favorites.splice(idx, 1); element.textContent = '🤍'; showToast('Удалено из избранного'); }
             saveFavoritesToStorage();
         }
 
