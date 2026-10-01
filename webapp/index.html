@@ -13,6 +13,7 @@
         .header { margin-bottom: 16px; }
         .search-bar { background: #1a1a2e; border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; gap: 10px; margin-bottom: 12px; border: 1px solid #2a2a4a; }
         .search-bar input { background: none; border: none; color: #fff; font-size: 15px; width: 100%; outline: none; }
+        .search-bar input::placeholder { color: #666; }
         .header-actions { display: flex; gap: 10px; margin-top: 12px; }
         .profile-btn { width: 44px; height: 44px; background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
         .cart-btn-main { flex: 1; height: 48px; background: linear-gradient(135deg, #0088ff, #0066dd); border: none; border-radius: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; color: #fff; font-weight: 700; font-size: 15px; box-shadow: 0 4px 15px rgba(0,136,255,0.4); }
@@ -44,7 +45,7 @@
         .cart-item .info { flex: 1; }
         .qty-controls { display: flex; align-items: center; gap: 8px; }
         .qty-btn { width: 30px; height: 30px; border-radius: 8px; border: none; background: #0f3460; color: #fff; cursor: pointer; font-weight: 700; }
-        .empty-cart, .empty-favorites { text-align: center; color: #666; padding: 60px 20px; }
+        .empty-cart, .empty-favorites, .empty-search { text-align: center; color: #666; padding: 60px 20px; }
         .cart-footer { position: fixed; bottom: 0; left: 0; right: 0; background: #1a1a2e; padding: 16px; border-top: 1px solid #2a2a4a; }
         .cart-total { font-size: 18px; font-weight: 700; margin-bottom: 12px; }
         .cart-total span { color: #00d4ff; }
@@ -65,6 +66,8 @@
         .menu-text { flex: 1; text-align: left; font-size: 15px; }
         .menu-arrow { color: #666; font-size: 20px; }
         .loading { text-align: center; color: #666; padding: 40px; grid-column: 1 / -1; }
+        .search-results-title { font-size: 16px; color: #888; margin-bottom: 16px; }
+        .search-results-title span { color: #00d4ff; font-weight: 700; }
         .toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: #00d4ff; color: #000; padding: 12px 24px; border-radius: 24px; font-weight: 600; font-size: 14px; z-index: 1000; animation: slideUp 0.3s ease, fadeOut 0.3s ease 1.7s; }
         @keyframes slideUp { from { opacity: 0; transform: translate(-50%, 20px); } to { opacity: 1; transform: translate(-50%, 0); } }
         @keyframes fadeOut { to { opacity: 0; } }
@@ -76,7 +79,7 @@
             <div class="search-bar"><span>🔍</span><input type="text" placeholder="Поиск товаров" id="search-input"></div>
             <div class="header-actions">
                 <div class="profile-btn" onclick="showProfile()"><span>👤</span></div>
-                <div class="cart-btn-main" onclick="showCart()"><span>🛒</span><span>Корзина</span></div>
+                <div class="cart-btn-main" onclick="showCart()"><span></span><span>Корзина</span></div>
             </div>
         </div>
         <div class="banner"><div class="banner-title">CLOUD SHOP</div></div>
@@ -87,6 +90,12 @@
     <div id="category-page" class="page">
         <div class="top-bar"><button class="back-btn" onclick="goHome()">← Назад</button><h2 id="category-title">Категория</h2></div>
         <div class="products-grid" id="products-grid"><div class="loading">Загрузка товаров...</div></div>
+    </div>
+
+    <div id="search-page" class="page">
+        <div class="top-bar"><button class="back-btn" onclick="clearSearch()">← Назад</button><h2>🔍 Поиск</h2></div>
+        <div class="search-results-title" id="search-results-title"></div>
+        <div class="products-grid" id="search-results-grid"><div class="loading">Поиск...</div></div>
     </div>
 
     <div id="cart-page" class="page">
@@ -133,6 +142,7 @@
         let cart = [];
         let favorites = [];
         let orders = [];
+        let searchTimeout = null;
 
         function loadCartFromStorage() { try { const s = localStorage.getItem('cloudshop_cart'); if (s) cart = JSON.parse(s); } catch(e){} }
         function saveCartToStorage() { try { localStorage.setItem('cloudshop_cart', JSON.stringify(cart)); } catch(e){} }
@@ -146,7 +156,7 @@
         loadOrdersFromStorage();
 
         const MANAGER_USERNAME = 'ghjkIz';
-        const categoryEmojis = {'Одноразки': '💨', 'Под-системы': '', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
+        const categoryEmojis = {'Одноразки': '💨', 'Под-системы': '🔋', 'Жидкость': '💧', 'Расходники': '️', 'Жевательный табак': '🌿', 'Кальяны': ''};
 
         async function loadCategories() {
             try {
@@ -201,27 +211,52 @@
             return '<div class="product-card"><div class="img-container">' + imgHtml + '<div class="img-fallback" style="' + fallbackStyle + '">📦</div><span class="favorite" onclick="toggleFavorite(' + p.id + ', this, event)">' + favIcon + '</span></div><div class="info"><div class="name">' + p.name + '</div><div class="desc">' + p.description + '</div><div class="price">' + p.price + ' ₽</div>' + actionBtn + '</div></div>';
         }
 
+        document.getElementById('search-input').addEventListener('input', function(e) {
+            const query = e.target.value.trim();
+            if (searchTimeout) clearTimeout(searchTimeout);
+            if (query.length === 0) { goHome(); return; }
+            searchTimeout = setTimeout(() => { performSearch(query); }, 500);
+        });
+
+        async function performSearch(query) {
+            showPage('search-page');
+            const grid = document.getElementById('search-results-grid');
+            const title = document.getElementById('search-results-title');
+            grid.innerHTML = '<div class="loading">Поиск...</div>';
+            title.innerHTML = 'Поиск: <span>"' + query + '"</span>';
+            try {
+                const response = await fetch('/api/search?q=' + encodeURIComponent(query));
+                const products = await response.json();
+                if (products.length === 0) {
+                    grid.innerHTML = '<div class="empty-search">🔍<br><br>Ничего не найдено<br><br>Попробуйте другой запрос</div>';
+                    return;
+                }
+                title.innerHTML = 'Найдено: <span>' + products.length + '</span> товаров по запросу "' + query + '"';
+                grid.innerHTML = products.map(p => renderProductCard(p, false)).join('');
+            } catch (error) {
+                console.error('Ошибка поиска:', error);
+                grid.innerHTML = '<div class="loading">Ошибка поиска</div>';
+            }
+        }
+
+        function clearSearch() {
+            document.getElementById('search-input').value = '';
+            goHome();
+        }
+
         async function showFavorites() {
             showPage('favorites-page');
             const grid = document.getElementById('favorites-grid');
-            
             if (favorites.length === 0) {
                 grid.innerHTML = '<div class="empty-favorites">❤️<br><br>Избранное пусто<br><br>Нажмите 🤍 на товаре чтобы добавить</div>';
                 return;
             }
-            
             grid.innerHTML = '<div class="loading">Загрузка избранных товаров...</div>';
-            
             try {
                 const ids = favorites.join(',');
                 const response = await fetch('/api/products-by-ids?ids=' + ids);
                 const products = await response.json();
-                
-                if (products.length === 0) {
-                    grid.innerHTML = '<div class="empty-favorites">Товары не найдены</div>';
-                    return;
-                }
-                
+                if (products.length === 0) { grid.innerHTML = '<div class="empty-favorites">Товары не найдены</div>'; return; }
                 grid.innerHTML = products.map(p => renderProductCard(p, true)).join('');
             } catch (error) {
                 grid.innerHTML = '<div class="loading">Ошибка загрузки</div>';
@@ -230,12 +265,7 @@
 
         function removeFromFavorites(id) {
             const idx = favorites.indexOf(id);
-            if (idx !== -1) {
-                favorites.splice(idx, 1);
-                saveFavoritesToStorage();
-                showToast('Удалено из избранного');
-                showFavorites();
-            }
+            if (idx !== -1) { favorites.splice(idx, 1); saveFavoritesToStorage(); showToast('Удалено из избранного'); showFavorites(); }
         }
 
         function addToCart(id, name, price, image) {
@@ -267,7 +297,7 @@
         }
 
         function clearCart() {
-            if (cart.length === 0) { showToast(' Корзина уже пуста'); return; }
+            if (cart.length === 0) { showToast('🛒 Корзина уже пуста'); return; }
             if (confirm('Очистить корзину?')) { cart = []; saveCartToStorage(); showCart(); showToast('🗑 Корзина очищена'); }
         }
 
@@ -316,7 +346,6 @@
         function goHome() { showPage('home-page'); }
         function showToast(message) { const existing = document.querySelector('.toast'); if (existing) existing.remove(); const toast = document.createElement('div'); toast.className = 'toast'; toast.textContent = message; document.body.appendChild(toast); setTimeout(() => toast.remove(), 2000); }
 
-        document.getElementById('search-input').addEventListener('input', function(e) { console.log('Поиск:', e.target.value.toLowerCase()); });
         loadCategories();
     </script>
 </body>
