@@ -35,13 +35,14 @@
         .product-card .desc { font-size: 11px; color: #888; margin-bottom: 8px; }
         .product-card .price { font-size: 18px; font-weight: 700; margin-bottom: 10px; color: #00d4ff; }
         .add-to-cart-btn { width: 100%; background: linear-gradient(135deg, #0088ff, #0066dd); color: #fff; border: none; padding: 10px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
+        .remove-fav-btn { width: 100%; background: #ff3b30; color: #fff; border: none; padding: 10px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
         .cart-item { background: #1a1a2e; border-radius: 12px; padding: 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; border: 1px solid #2a2a4a; }
         .cart-thumb { width: 50px; height: 50px; border-radius: 10px; overflow: hidden; background: #16213e; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .cart-thumb img { width: 100%; height: 100%; object-fit: cover; }
         .cart-item .info { flex: 1; }
         .qty-controls { display: flex; align-items: center; gap: 8px; }
         .qty-btn { width: 30px; height: 30px; border-radius: 8px; border: none; background: #0f3460; color: #fff; cursor: pointer; font-weight: 700; }
-        .empty-cart { text-align: center; color: #666; padding: 60px 20px; }
+        .empty-cart, .empty-favorites { text-align: center; color: #666; padding: 60px 20px; }
         .cart-footer { position: fixed; bottom: 0; left: 0; right: 0; background: #1a1a2e; padding: 16px; border-top: 1px solid #2a2a4a; }
         .cart-total { font-size: 18px; font-weight: 700; margin-bottom: 12px; }
         .cart-total span { color: #00d4ff; }
@@ -70,7 +71,7 @@
 <body>
     <div id="home-page" class="page active">
         <div class="header">
-            <div class="search-bar"><span></span><input type="text" placeholder="Поиск товаров" id="search-input"></div>
+            <div class="search-bar"><span>🔍</span><input type="text" placeholder="Поиск товаров" id="search-input"></div>
             <div class="header-actions">
                 <div class="profile-btn" onclick="showProfile()"><span>👤</span></div>
                 <div class="cart-btn-main" onclick="showCart()"><span>🛒</span><span>Корзина</span></div>
@@ -92,12 +93,18 @@
         <div class="cart-footer">
             <div class="cart-total">Итого: <span id="total-price">0</span> ₽</div>
             <button class="checkout-btn" onclick="checkout()">Оформить заказ</button>
-            <button class="clear-cart-btn" onclick="clearCart()"> Очистить корзину</button>
+            <button class="clear-cart-btn" onclick="clearCart()">🗑 Очистить корзину</button>
         </div>
     </div>
 
+    <!-- НОВАЯ СТРАНИЦА: ИЗБРАННОЕ -->
+    <div id="favorites-page" class="page">
+        <div class="top-bar"><button class="back-btn" onclick="goHome()">← Назад</button><h2>❤️ Избранное</h2></div>
+        <div class="products-grid" id="favorites-grid"><div class="loading">Загрузка...</div></div>
+    </div>
+
     <div id="profile-page" class="page">
-        <div class="top-bar"><button class="back-btn" onclick="goHome()">← Назад</button><h2>👤 Профиль</h2></div>
+        <div class="top-bar"><button class="back-btn" onclick="goHome()">← Назад</button><h2> Профиль</h2></div>
         <div class="profile-content">
             <div class="profile-avatar" id="profile-avatar"></div>
             <div class="profile-name" id="profile-name">Гость</div>
@@ -108,7 +115,7 @@
                 <div class="stat-item"><div class="stat-value" id="stat-favorites">0</div><div class="stat-label">Избранное</div></div>
             </div>
             <div class="profile-menu">
-                <div class="menu-item" onclick="showCart()"><span class="menu-icon">🛒</span><span class="menu-text">Мои заказы</span><span class="menu-arrow">›</span></div>
+                <div class="menu-item" onclick="showCart()"><span class="menu-icon">🛒</span><span class="menu-text">Корзина</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="showFavorites()"><span class="menu-icon">❤️</span><span class="menu-text">Избранное</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="openSupport()"><span class="menu-icon">💬</span><span class="menu-text">Поддержка</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="showAbout()"><span class="menu-icon">ℹ️</span><span class="menu-text">О магазине</span><span class="menu-arrow">›</span></div>
@@ -122,71 +129,23 @@
         tg.ready();
         const tgUser = tg.initDataUnsafe?.user || {};
 
-        // ========== КОРЗИНА С СОХРАНЕНИЕМ В LOCALSTORAGE ==========
         let cart = [];
         let favorites = [];
         let orders = [];
 
-        // Загружаем корзину из localStorage при старте
-        function loadCartFromStorage() {
-            try {
-                const saved = localStorage.getItem('cloudshop_cart');
-                if (saved) {
-                    cart = JSON.parse(saved);
-                }
-            } catch (e) {
-                console.error('Ошибка загрузки корзины:', e);
-            }
-        }
+        function loadCartFromStorage() { try { const s = localStorage.getItem('cloudshop_cart'); if (s) cart = JSON.parse(s); } catch(e){} }
+        function saveCartToStorage() { try { localStorage.setItem('cloudshop_cart', JSON.stringify(cart)); } catch(e){} }
+        function loadFavoritesFromStorage() { try { const s = localStorage.getItem('cloudshop_favorites'); if (s) favorites = JSON.parse(s); } catch(e){} }
+        function saveFavoritesToStorage() { try { localStorage.setItem('cloudshop_favorites', JSON.stringify(favorites)); } catch(e){} }
+        function loadOrdersFromStorage() { try { const s = localStorage.getItem('cloudshop_orders'); if (s) orders = JSON.parse(s); } catch(e){} }
+        function saveOrdersToStorage() { try { localStorage.setItem('cloudshop_orders', JSON.stringify(orders)); } catch(e){} }
 
-        // Сохраняем корзину в localStorage
-        function saveCartToStorage() {
-            try {
-                localStorage.setItem('cloudshop_cart', JSON.stringify(cart));
-            } catch (e) {
-                console.error('Ошибка сохранения корзины:', e);
-            }
-        }
-
-        // Загружаем избранное
-        function loadFavoritesFromStorage() {
-            try {
-                const saved = localStorage.getItem('cloudshop_favorites');
-                if (saved) {
-                    favorites = JSON.parse(saved);
-                }
-            } catch (e) {}
-        }
-
-        function saveFavoritesToStorage() {
-            try {
-                localStorage.setItem('cloudshop_favorites', JSON.stringify(favorites));
-            } catch (e) {}
-        }
-
-        // Загружаем заказы
-        function loadOrdersFromStorage() {
-            try {
-                const saved = localStorage.getItem('cloudshop_orders');
-                if (saved) {
-                    orders = JSON.parse(saved);
-                }
-            } catch (e) {}
-        }
-
-        function saveOrdersToStorage() {
-            try {
-                localStorage.setItem('cloudshop_orders', JSON.stringify(orders));
-            } catch (e) {}
-        }
-
-        // Загружаем всё при старте
         loadCartFromStorage();
         loadFavoritesFromStorage();
         loadOrdersFromStorage();
 
         const MANAGER_USERNAME = 'ghjkIz';
-        const categoryEmojis = {'Одноразки': '💨', 'Под-системы': '🔋', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '', 'Кальяны': '🪝'};
+        const categoryEmojis = {'Одноразки': '💨', 'Под-системы': '🔋', 'Жидкость': '💧', 'Расходники': '️', 'Жевательный табак': '🌿', 'Кальяны': ''};
 
         async function loadCategories() {
             try {
@@ -195,7 +154,7 @@
                 const grid = document.getElementById('categories-grid');
                 if (categories.length === 0) { grid.innerHTML = '<div class="loading">Категории не найдены</div>'; return; }
                 grid.innerHTML = categories.map(cat => {
-                    const emoji = categoryEmojis[cat.name] || '📦';
+                    const emoji = cat.image || categoryEmojis[cat.name] || '📦';
                     return '<div class="category-card" onclick="openCategory(\'' + cat.name + '\')"><div class="emoji">' + emoji + '</div><div class="name">' + cat.name + '</div></div>';
                 }).join('');
             } catch (error) {
@@ -212,19 +171,65 @@
                 const response = await fetch('/api/products/' + encodeURIComponent(category));
                 const products = await response.json();
                 if (products.length === 0) { grid.innerHTML = '<div class="loading">Товары не найдены</div>'; return; }
-                grid.innerHTML = products.map(p => {
-                    const isFav = favorites.includes(p.id);
-                    const safeName = p.name.replace(/'/g, "\\'");
-                    const hasImage = p.image && p.image.length > 5 && p.image.startsWith('http');
-                    let imgHtml = '';
-                    if (hasImage) {
-                        imgHtml = '<img src="' + p.image + '" alt="' + safeName + '" onerror="this.style.display=\'none\'; this.parentElement.querySelector(\'.img-fallback\').style.display=\'flex\';">';
-                    }
-                    const fallbackStyle = hasImage ? 'display:none;' : '';
-                    return '<div class="product-card"><div class="img-container">' + imgHtml + '<div class="img-fallback" style="' + fallbackStyle + '">📦</div><span class="favorite" onclick="toggleFavorite(' + p.id + ', this, event)">' + (isFav ? '❤️' : '🤍') + '</span></div><div class="info"><div class="name">' + p.name + '</div><div class="desc">' + p.description + '</div><div class="price">' + p.price + ' ₽</div><button class="add-to-cart-btn" onclick="addToCart(' + p.id + ', \'' + safeName + '\', ' + p.price + ', \'' + (p.image || '').replace(/'/g, "\\'") + '\')">Добавить в корзину</button></div></div>';
-                }).join('');
+                grid.innerHTML = products.map(p => renderProductCard(p)).join('');
             } catch (error) {
                 grid.innerHTML = '<div class="loading">Ошибка загрузки</div>';
+            }
+        }
+
+        // Универсальная функция отрисовки карточки товара
+        function renderProductCard(p, isFavoritePage) {
+            const isFav = favorites.includes(p.id);
+            const safeName = p.name.replace(/'/g, "\\'");
+            const hasImage = p.image && p.image.length > 5 && p.image.startsWith('http');
+            let imgHtml = '';
+            if (hasImage) {
+                imgHtml = '<img src="' + p.image + '" alt="' + safeName + '" onerror="this.style.display=\'none\'; this.parentElement.querySelector(\'.img-fallback\').style.display=\'flex\';">';
+            }
+            const fallbackStyle = hasImage ? 'display:none;' : '';
+            const favIcon = isFav ? '❤️' : '🤍';
+            const actionBtn = isFavoritePage 
+                ? '<button class="remove-fav-btn" onclick="removeFromFavorites(' + p.id + ')">Удалить из избранного</button>'
+                : '<button class="add-to-cart-btn" onclick="addToCart(' + p.id + ', \'' + safeName + '\', ' + p.price + ', \'' + (p.image || '').replace(/'/g, "\\'") + '\')">Добавить в корзину</button>';
+            
+            return '<div class="product-card"><div class="img-container">' + imgHtml + '<div class="img-fallback" style="' + fallbackStyle + '">📦</div><span class="favorite" onclick="toggleFavorite(' + p.id + ', this, event)">' + favIcon + '</span></div><div class="info"><div class="name">' + p.name + '</div><div class="desc">' + p.description + '</div><div class="price">' + p.price + ' ₽</div>' + actionBtn + '</div></div>';
+        }
+
+        // Загрузка избранного
+        async function showFavorites() {
+            showPage('favorites-page');
+            const grid = document.getElementById('favorites-grid');
+            
+            if (favorites.length === 0) {
+                grid.innerHTML = '<div class="empty-favorites">❤️<br><br>Избранное пусто<br><br>Нажмите  на товаре чтобы добавить</div>';
+                return;
+            }
+            
+            grid.innerHTML = '<div class="loading">Загрузка избранных товаров...</div>';
+            
+            try {
+                const ids = favorites.join(',');
+                const response = await fetch('/api/products-by-ids?ids=' + ids);
+                const products = await response.json();
+                
+                if (products.length === 0) {
+                    grid.innerHTML = '<div class="empty-favorites">Товары не найдены</div>';
+                    return;
+                }
+                
+                grid.innerHTML = products.map(p => renderProductCard(p, true)).join('');
+            } catch (error) {
+                grid.innerHTML = '<div class="loading">Ошибка загрузки</div>';
+            }
+        }
+
+        function removeFromFavorites(id) {
+            const idx = favorites.indexOf(id);
+            if (idx !== -1) {
+                favorites.splice(idx, 1);
+                saveFavoritesToStorage();
+                showToast('Удалено из избранного');
+                showFavorites(); // Перезагружаем страницу
             }
         }
 
@@ -232,9 +237,7 @@
             const existing = cart.find(item => item.id === id);
             if (existing) { existing.quantity++; } 
             else { cart.push({ id: id, name: name, price: price, image: image || '', quantity: 1 }); }
-            
-            saveCartToStorage(); // Сохраняем в localStorage
-            
+            saveCartToStorage();
             if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
             showToast('✅ ' + name + ' добавлен в корзину');
         }
@@ -255,25 +258,12 @@
 
         function changeQty(id, delta) {
             const item = cart.find(i => i.id === id);
-            if (item) { 
-                item.quantity += delta; 
-                if (item.quantity <= 0) cart = cart.filter(i => i.id !== id); 
-                saveCartToStorage(); // Сохраняем
-                showCart(); 
-            }
+            if (item) { item.quantity += delta; if (item.quantity <= 0) cart = cart.filter(i => i.id !== id); saveCartToStorage(); showCart(); }
         }
 
         function clearCart() {
-            if (cart.length === 0) {
-                showToast('🛒 Корзина уже пуста');
-                return;
-            }
-            if (confirm('Очистить корзину?')) {
-                cart = [];
-                saveCartToStorage(); // Очищаем в localStorage
-                showCart();
-                showToast('🗑 Корзина очищена');
-            }
+            if (cart.length === 0) { showToast('🛒 Корзина уже пуста'); return; }
+            if (confirm('Очистить корзину?')) { cart = []; saveCartToStorage(); showCart(); showToast('🗑 Корзина очищена'); }
         }
 
         function updateTotal() {
@@ -286,13 +276,10 @@
             const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
             const data = { type: 'order', items: cart, total: total };
             if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-            
             orders.push({ date: new Date().toISOString(), items: JSON.parse(JSON.stringify(cart)), total: total });
-            saveOrdersToStorage(); // Сохраняем заказы
-            
+            saveOrdersToStorage();
             cart = [];
-            saveCartToStorage(); // Очищаем корзину в localStorage
-            
+            saveCartToStorage();
             tg.sendData(JSON.stringify(data));
         }
 
@@ -309,7 +296,6 @@
             showPage('profile-page');
         }
 
-        function showFavorites() { showToast(favorites.length === 0 ? '❤️ Избранное пусто' : '❤️ В избранном: ' + favorites.length); }
         function openSupport() { if (tg.openTelegramLink) tg.openTelegramLink('https://t.me/' + MANAGER_USERNAME); else showToast('💬 @' + MANAGER_USERNAME); }
         function showAbout() { showToast('ℹ️ CloudShop — лучший магазин в Екб'); }
 
@@ -318,7 +304,7 @@
             const idx = favorites.indexOf(id);
             if (idx === -1) { favorites.push(id); element.textContent = '❤️'; showToast('❤️ Добавлено в избранное'); }
             else { favorites.splice(idx, 1); element.textContent = ''; showToast('Удалено из избранного'); }
-            saveFavoritesToStorage(); // Сохраняем избранное
+            saveFavoritesToStorage();
         }
 
         function showPage(pageId) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById(pageId).classList.add('active'); window.scrollTo(0, 0); }
