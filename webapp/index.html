@@ -40,12 +40,13 @@
         .cart-thumb img { width: 100%; height: 100%; object-fit: cover; }
         .cart-item .info { flex: 1; }
         .qty-controls { display: flex; align-items: center; gap: 8px; }
-        .qty-btn { width: 30px; height: 30px; border-radius: 8px; border: none; background: #0f3460; color: #fff; cursor: pointer; }
+        .qty-btn { width: 30px; height: 30px; border-radius: 8px; border: none; background: #0f3460; color: #fff; cursor: pointer; font-weight: 700; }
         .empty-cart { text-align: center; color: #666; padding: 60px 20px; }
         .cart-footer { position: fixed; bottom: 0; left: 0; right: 0; background: #1a1a2e; padding: 16px; border-top: 1px solid #2a2a4a; }
         .cart-total { font-size: 18px; font-weight: 700; margin-bottom: 12px; }
         .cart-total span { color: #00d4ff; }
         .checkout-btn { width: 100%; background: linear-gradient(135deg, #0088ff, #0066dd); color: #fff; border: none; padding: 14px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; }
+        .clear-cart-btn { width: 100%; background: #ff3b30; color: #fff; border: none; padding: 12px; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 8px; }
         .profile-content { text-align: center; padding: 20px 0; }
         .profile-avatar { width: 80px; height: 80px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 40px; margin: 0 auto 16px; }
         .profile-name { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
@@ -69,7 +70,7 @@
 <body>
     <div id="home-page" class="page active">
         <div class="header">
-            <div class="search-bar"><span>🔍</span><input type="text" placeholder="Поиск товаров" id="search-input"></div>
+            <div class="search-bar"><span></span><input type="text" placeholder="Поиск товаров" id="search-input"></div>
             <div class="header-actions">
                 <div class="profile-btn" onclick="showProfile()"><span>👤</span></div>
                 <div class="cart-btn-main" onclick="showCart()"><span>🛒</span><span>Корзина</span></div>
@@ -91,6 +92,7 @@
         <div class="cart-footer">
             <div class="cart-total">Итого: <span id="total-price">0</span> ₽</div>
             <button class="checkout-btn" onclick="checkout()">Оформить заказ</button>
+            <button class="clear-cart-btn" onclick="clearCart()"> Очистить корзину</button>
         </div>
     </div>
 
@@ -119,11 +121,72 @@
         tg.expand();
         tg.ready();
         const tgUser = tg.initDataUnsafe?.user || {};
+
+        // ========== КОРЗИНА С СОХРАНЕНИЕМ В LOCALSTORAGE ==========
         let cart = [];
         let favorites = [];
         let orders = [];
+
+        // Загружаем корзину из localStorage при старте
+        function loadCartFromStorage() {
+            try {
+                const saved = localStorage.getItem('cloudshop_cart');
+                if (saved) {
+                    cart = JSON.parse(saved);
+                }
+            } catch (e) {
+                console.error('Ошибка загрузки корзины:', e);
+            }
+        }
+
+        // Сохраняем корзину в localStorage
+        function saveCartToStorage() {
+            try {
+                localStorage.setItem('cloudshop_cart', JSON.stringify(cart));
+            } catch (e) {
+                console.error('Ошибка сохранения корзины:', e);
+            }
+        }
+
+        // Загружаем избранное
+        function loadFavoritesFromStorage() {
+            try {
+                const saved = localStorage.getItem('cloudshop_favorites');
+                if (saved) {
+                    favorites = JSON.parse(saved);
+                }
+            } catch (e) {}
+        }
+
+        function saveFavoritesToStorage() {
+            try {
+                localStorage.setItem('cloudshop_favorites', JSON.stringify(favorites));
+            } catch (e) {}
+        }
+
+        // Загружаем заказы
+        function loadOrdersFromStorage() {
+            try {
+                const saved = localStorage.getItem('cloudshop_orders');
+                if (saved) {
+                    orders = JSON.parse(saved);
+                }
+            } catch (e) {}
+        }
+
+        function saveOrdersToStorage() {
+            try {
+                localStorage.setItem('cloudshop_orders', JSON.stringify(orders));
+            } catch (e) {}
+        }
+
+        // Загружаем всё при старте
+        loadCartFromStorage();
+        loadFavoritesFromStorage();
+        loadOrdersFromStorage();
+
         const MANAGER_USERNAME = 'ghjkIz';
-        const categoryEmojis = {'Одноразки': '💨', 'Под-системы': '🔋', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
+        const categoryEmojis = {'Одноразки': '💨', 'Под-системы': '🔋', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '', 'Кальяны': '🪝'};
 
         async function loadCategories() {
             try {
@@ -132,7 +195,7 @@
                 const grid = document.getElementById('categories-grid');
                 if (categories.length === 0) { grid.innerHTML = '<div class="loading">Категории не найдены</div>'; return; }
                 grid.innerHTML = categories.map(cat => {
-                    const emoji = categoryEmojis[cat.name] || '';
+                    const emoji = categoryEmojis[cat.name] || '📦';
                     return '<div class="category-card" onclick="openCategory(\'' + cat.name + '\')"><div class="emoji">' + emoji + '</div><div class="name">' + cat.name + '</div></div>';
                 }).join('');
             } catch (error) {
@@ -152,7 +215,6 @@
                 grid.innerHTML = products.map(p => {
                     const isFav = favorites.includes(p.id);
                     const safeName = p.name.replace(/'/g, "\\'");
-                    // Проверяем есть ли рабочее фото
                     const hasImage = p.image && p.image.length > 5 && p.image.startsWith('http');
                     let imgHtml = '';
                     if (hasImage) {
@@ -168,14 +230,18 @@
 
         function addToCart(id, name, price, image) {
             const existing = cart.find(item => item.id === id);
-            if (existing) { existing.quantity++; } else { cart.push({ id: id, name: name, price: price, image: image || '', quantity: 1 }); }
+            if (existing) { existing.quantity++; } 
+            else { cart.push({ id: id, name: name, price: price, image: image || '', quantity: 1 }); }
+            
+            saveCartToStorage(); // Сохраняем в localStorage
+            
             if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
             showToast('✅ ' + name + ' добавлен в корзину');
         }
 
         function showCart() {
             const container = document.getElementById('cart-items');
-            if (cart.length === 0) { container.innerHTML = '<div class="empty-cart">🛒<br><br>Корзина пуста</div>'; }
+            if (cart.length === 0) { container.innerHTML = '<div class="empty-cart">🛒<br><br>Корзина пуста<br><br>Добавьте товары из каталога</div>'; }
             else {
                 container.innerHTML = cart.map(item => {
                     const hasImage = item.image && item.image.length > 5 && item.image.startsWith('http');
@@ -189,7 +255,25 @@
 
         function changeQty(id, delta) {
             const item = cart.find(i => i.id === id);
-            if (item) { item.quantity += delta; if (item.quantity <= 0) cart = cart.filter(i => i.id !== id); showCart(); }
+            if (item) { 
+                item.quantity += delta; 
+                if (item.quantity <= 0) cart = cart.filter(i => i.id !== id); 
+                saveCartToStorage(); // Сохраняем
+                showCart(); 
+            }
+        }
+
+        function clearCart() {
+            if (cart.length === 0) {
+                showToast('🛒 Корзина уже пуста');
+                return;
+            }
+            if (confirm('Очистить корзину?')) {
+                cart = [];
+                saveCartToStorage(); // Очищаем в localStorage
+                showCart();
+                showToast('🗑 Корзина очищена');
+            }
         }
 
         function updateTotal() {
@@ -202,8 +286,13 @@
             const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
             const data = { type: 'order', items: cart, total: total };
             if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+            
             orders.push({ date: new Date().toISOString(), items: JSON.parse(JSON.stringify(cart)), total: total });
+            saveOrdersToStorage(); // Сохраняем заказы
+            
             cart = [];
+            saveCartToStorage(); // Очищаем корзину в localStorage
+            
             tg.sendData(JSON.stringify(data));
         }
 
@@ -228,7 +317,8 @@
             event.stopPropagation();
             const idx = favorites.indexOf(id);
             if (idx === -1) { favorites.push(id); element.textContent = '❤️'; showToast('❤️ Добавлено в избранное'); }
-            else { favorites.splice(idx, 1); element.textContent = '🤍'; showToast('Удалено из избранного'); }
+            else { favorites.splice(idx, 1); element.textContent = ''; showToast('Удалено из избранного'); }
+            saveFavoritesToStorage(); // Сохраняем избранное
         }
 
         function showPage(pageId) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById(pageId).classList.add('active'); window.scrollTo(0, 0); }
