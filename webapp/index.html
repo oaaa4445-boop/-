@@ -30,8 +30,14 @@
         }
         
         @keyframes glowText {
-            0%, 100% { text-shadow: 0 0 20px rgba(176, 38, 255, 0.5), 0 0 40px rgba(0, 212, 255, 0.3); filter: drop-shadow(0 0 15px rgba(176, 38, 255, 0.6)); }
-            50% { text-shadow: 0 0 30px rgba(176, 38, 255, 0.8), 0 0 60px rgba(0, 212, 255, 0.5); filter: drop-shadow(0 0 25px rgba(176, 38, 255, 0.9)); }
+            0%, 100% { 
+                text-shadow: 0 0 8px rgba(176, 38, 255, 0.3), 0 0 15px rgba(0, 212, 255, 0.2); 
+                filter: drop-shadow(0 0 8px rgba(176, 38, 255, 0.4)); 
+            }
+            50% { 
+                text-shadow: 0 0 12px rgba(176, 38, 255, 0.5), 0 0 25px rgba(0, 212, 255, 0.3); 
+                filter: drop-shadow(0 0 12px rgba(176, 38, 255, 0.6)); 
+            }
         }
         
         .header { margin-bottom: 16px; }
@@ -156,7 +162,7 @@
             animation: glowText 3s ease-in-out infinite;
             position: relative;
             z-index: 2;
-            filter: drop-shadow(0 0 30px rgba(176, 38, 255, 0.7));
+            -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.25);
         }
         
         .section-title { 
@@ -551,7 +557,7 @@
         <div class="header">
             <div class="search-bar"><span>🔍</span><input type="text" placeholder="Поиск товаров" id="search-input"></div>
             <div class="header-actions">
-                <div class="profile-btn" onclick="showProfile()"><span></span></div>
+                <div class="profile-btn" onclick="showProfile()"><span>👤</span></div>
                 <div class="cart-btn-main" onclick="showCart()"><span>🛒</span><span>Корзина</span></div>
             </div>
         </div>
@@ -635,7 +641,7 @@
         loadOrdersFromStorage();
 
         const MANAGER_USERNAME = 'ghjkIz';
-        const categoryEmojis = {'Одноразки': '', 'Под-системы': '🔋', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
+        const categoryEmojis = {'Одноразки': '💨', 'Под-системы': '🔋', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
 
         async function loadCategories() {
             try {
@@ -776,7 +782,7 @@
         }
 
         function clearCart() {
-            if (cart.length === 0) { showToast(' Корзина уже пуста'); return; }
+            if (cart.length === 0) { showToast('🛒 Корзина уже пуста'); return; }
             if (confirm('Очистить корзину?')) { cart = []; saveCartToStorage(); showCart(); showToast('🗑 Корзина очищена'); }
         }
 
@@ -786,7 +792,7 @@
         }
 
         function checkout() {
-            if (cart.length === 0) { showToast(' Корзина пуста'); return; }
+            if (cart.length === 0) { showToast('🛒 Корзина пуста'); return; }
             const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
             const data = { type: 'order', items: cart, total: total };
             if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
@@ -811,7 +817,7 @@
         }
 
         function openSupport() { if (tg.openTelegramLink) tg.openTelegramLink('https://t.me/' + MANAGER_USERNAME); else showToast('💬 @' + MANAGER_USERNAME); }
-        function showAbout() { showToast('️ PUFFY — curated vape & hookah shop'); }
+        function showAbout() { showToast('ℹ️ PUFFY — curated vape & hookah shop'); }
 
         function toggleFavorite(id, element, event) {
             event.stopPropagation();
