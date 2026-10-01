@@ -24,11 +24,6 @@
             to { opacity: 1; transform: translateY(0); } 
         }
         
-        @keyframes neonPulse {
-            0%, 100% { box-shadow: 0 0 20px rgba(176, 38, 255, 0.4), 0 0 40px rgba(176, 38, 255, 0.2); }
-            50% { box-shadow: 0 0 30px rgba(176, 38, 255, 0.7), 0 0 60px rgba(176, 38, 255, 0.4); }
-        }
-        
         @keyframes glowText {
             0%, 100% { 
                 text-shadow: 0 0 8px rgba(176, 38, 255, 0.3), 0 0 15px rgba(0, 212, 255, 0.2); 
@@ -38,6 +33,17 @@
                 text-shadow: 0 0 12px rgba(176, 38, 255, 0.5), 0 0 25px rgba(0, 212, 255, 0.3); 
                 filter: drop-shadow(0 0 12px rgba(176, 38, 255, 0.6)); 
             }
+        }
+        
+        .fade-in {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+        
+        .fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
         }
         
         .header { margin-bottom: 16px; }
@@ -172,7 +178,7 @@
             letter-spacing: 1px;
         }
         
-        .categories-grid, .products-grid { 
+        .categories-grid { 
             display: grid; 
             grid-template-columns: 1fr 1fr; 
             gap: 14px; 
@@ -225,29 +231,10 @@
             letter-spacing: 0.5px;
         }
         
-        .top-bar { 
-            display: flex; 
-            align-items: center; 
-            gap: 12px; 
-            margin-bottom: 20px; 
-            padding-bottom: 14px; 
-            border-bottom: 1px solid rgba(176, 38, 255, 0.2); 
-        }
-        
-        .back-btn { 
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(176, 38, 255, 0.3); 
-            color: #fff; 
-            padding: 10px 16px; 
-            border-radius: 12px; 
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        
-        .back-btn:active {
-            border-color: rgba(176, 38, 255, 0.8);
-            box-shadow: 0 0 20px rgba(176, 38, 255, 0.4);
+        .products-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 14px; 
         }
         
         .product-card { 
@@ -539,17 +526,42 @@
             font-weight: 700; 
             font-size: 14px; 
             z-index: 1000; 
-            animation: slideUp 0.3s ease, fadeOut 0.3s ease 1.7s;
+            animation: slideUpToast 0.3s ease, fadeOut 0.3s ease 1.7s;
             box-shadow: 0 0 30px rgba(176, 38, 255, 0.6);
             letter-spacing: 0.5px;
         }
         
-        @keyframes slideUp { 
+        @keyframes slideUpToast { 
             from { opacity: 0; transform: translate(-50%, 20px); } 
             to { opacity: 1; transform: translate(-50%, 0); } 
         }
         
         @keyframes fadeOut { to { opacity: 0; } }
+        
+        .top-bar { 
+            display: flex; 
+            align-items: center; 
+            gap: 12px; 
+            margin-bottom: 20px; 
+            padding-bottom: 14px; 
+            border-bottom: 1px solid rgba(176, 38, 255, 0.2); 
+        }
+        
+        .back-btn { 
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(176, 38, 255, 0.3); 
+            color: #fff; 
+            padding: 10px 16px; 
+            border-radius: 12px; 
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .back-btn:active {
+            border-color: rgba(176, 38, 255, 0.8);
+            box-shadow: 0 0 20px rgba(176, 38, 255, 0.4);
+        }
     </style>
 </head>
 <body>
@@ -557,7 +569,7 @@
         <div class="header">
             <div class="search-bar"><span>🔍</span><input type="text" placeholder="Поиск товаров" id="search-input"></div>
             <div class="header-actions">
-                <div class="profile-btn" onclick="showProfile()"><span>👤</span></div>
+                <div class="profile-btn" onclick="showProfile()"><span></span></div>
                 <div class="cart-btn-main" onclick="showCart()"><span>🛒</span><span>Корзина</span></div>
             </div>
         </div>
@@ -569,7 +581,9 @@
         </div>
         
         <h2 class="section-title">Категории</h2>
-        <div class="categories-grid" id="categories-grid"><div class="loading">Загрузка...</div></div>
+        <div class="categories-grid" id="categories-grid">
+            <div class="loading">Загрузка...</div>
+        </div>
     </div>
 
     <div id="category-page" class="page">
@@ -643,13 +657,21 @@
         const MANAGER_USERNAME = 'ghjkIz';
         const categoryEmojis = {'Одноразки': '💨', 'Под-системы': '🔋', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
 
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.1 });
+
         async function loadCategories() {
             try {
                 const response = await fetch('/api/categories');
                 const categories = await response.json();
                 const grid = document.getElementById('categories-grid');
                 if (categories.length === 0) { grid.innerHTML = '<div class="loading">Категории не найдены</div>'; return; }
-                grid.innerHTML = categories.map(cat => {
+                grid.innerHTML = categories.map((cat, index) => {
                     const hasImage = cat.image && cat.image.length > 5 && cat.image.startsWith('http');
                     let imgHtml = '';
                     if (hasImage) {
@@ -657,8 +679,14 @@
                     }
                     const emoji = categoryEmojis[cat.name] || '📦';
                     const fallbackStyle = hasImage ? 'display:none;' : 'display:block;';
-                    return '<div class="category-card" onclick="openCategory(\'' + cat.name + '\')">' + imgHtml + '<div class="cat-emoji-fallback" style="' + fallbackStyle + '">' + emoji + '</div><div class="cat-overlay"></div><div class="name">' + cat.name + '</div></div>';
+                    return '<div class="category-card fade-in" onclick="openCategory(\'' + cat.name + '\')" style="transition-delay: ' + (index * 0.1) + 's">' + imgHtml + '<div class="cat-emoji-fallback" style="' + fallbackStyle + '">' + emoji + '</div><div class="cat-overlay"></div><div class="name">' + cat.name + '</div></div>';
                 }).join('');
+                
+                setTimeout(() => {
+                    document.querySelectorAll('.category-card.fade-in').forEach(el => {
+                        observer.observe(el);
+                    });
+                }, 100);
             } catch (error) {
                 document.getElementById('categories-grid').innerHTML = '<div class="loading">Ошибка загрузки</div>';
             }
@@ -673,13 +701,19 @@
                 const response = await fetch('/api/products/' + encodeURIComponent(category));
                 const products = await response.json();
                 if (products.length === 0) { grid.innerHTML = '<div class="loading">Товары не найдены</div>'; return; }
-                grid.innerHTML = products.map(p => renderProductCard(p, false)).join('');
+                grid.innerHTML = products.map((p, index) => renderProductCard(p, false, index)).join('');
+                
+                setTimeout(() => {
+                    document.querySelectorAll('.product-card.fade-in').forEach(el => {
+                        observer.observe(el);
+                    });
+                }, 100);
             } catch (error) {
                 grid.innerHTML = '<div class="loading">Ошибка загрузки</div>';
             }
         }
 
-        function renderProductCard(p, isFavoritePage) {
+        function renderProductCard(p, isFavoritePage, index = 0) {
             const isFav = favorites.includes(p.id);
             const safeName = p.name.replace(/'/g, "\\'");
             const hasImage = p.image && p.image.length > 5 && p.image.startsWith('http');
@@ -693,7 +727,7 @@
                 ? '<button class="remove-fav-btn" onclick="removeFromFavorites(' + p.id + ')">Удалить из избранного</button>'
                 : '<button class="add-to-cart-btn" onclick="addToCart(' + p.id + ', \'' + safeName + '\', ' + p.price + ', \'' + (p.image || '').replace(/'/g, "\\'") + '\')">Добавить в корзину</button>';
             
-            return '<div class="product-card"><div class="img-container">' + imgHtml + '<div class="img-fallback" style="' + fallbackStyle + '"></div><span class="favorite" onclick="toggleFavorite(' + p.id + ', this, event)">' + favIcon + '</span></div><div class="info"><div class="name">' + p.name + '</div><div class="desc">' + p.description + '</div><div class="price">' + p.price + ' ₽</div>' + actionBtn + '</div></div>';
+            return '<div class="product-card fade-in" style="transition-delay: ' + (index * 0.1) + 's"><div class="img-container">' + imgHtml + '<div class="img-fallback" style="' + fallbackStyle + '"></div><span class="favorite" onclick="toggleFavorite(' + p.id + ', this, event)">' + favIcon + '</span></div><div class="info"><div class="name">' + p.name + '</div><div class="desc">' + p.description + '</div><div class="price">' + p.price + ' ₽</div>' + actionBtn + '</div></div>';
         }
 
         document.getElementById('search-input').addEventListener('input', function(e) {
@@ -717,7 +751,13 @@
                     return;
                 }
                 title.innerHTML = 'Найдено: <span>' + products.length + '</span> товаров по запросу "' + query + '"';
-                grid.innerHTML = products.map(p => renderProductCard(p, false)).join('');
+                grid.innerHTML = products.map((p, index) => renderProductCard(p, false, index)).join('');
+                
+                setTimeout(() => {
+                    document.querySelectorAll('.product-card.fade-in').forEach(el => {
+                        observer.observe(el);
+                    });
+                }, 100);
             } catch (error) {
                 console.error('Ошибка поиска:', error);
                 grid.innerHTML = '<div class="loading">Ошибка поиска</div>';
@@ -742,7 +782,13 @@
                 const response = await fetch('/api/products-by-ids?ids=' + ids);
                 const products = await response.json();
                 if (products.length === 0) { grid.innerHTML = '<div class="empty-favorites">Товары не найдены</div>'; return; }
-                grid.innerHTML = products.map(p => renderProductCard(p, true)).join('');
+                grid.innerHTML = products.map((p, index) => renderProductCard(p, true, index)).join('');
+                
+                setTimeout(() => {
+                    document.querySelectorAll('.product-card.fade-in').forEach(el => {
+                        observer.observe(el);
+                    });
+                }, 100);
             } catch (error) {
                 grid.innerHTML = '<div class="loading">Ошибка загрузки</div>';
             }
@@ -782,7 +828,7 @@
         }
 
         function clearCart() {
-            if (cart.length === 0) { showToast('🛒 Корзина уже пуста'); return; }
+            if (cart.length === 0) { showToast(' Корзина уже пуста'); return; }
             if (confirm('Очистить корзину?')) { cart = []; saveCartToStorage(); showCart(); showToast('🗑 Корзина очищена'); }
         }
 
@@ -828,7 +874,7 @@
         }
 
         function showPage(pageId) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById(pageId).classList.add('active'); window.scrollTo(0, 0); }
-        function goHome() { showPage('home-page'); }
+        function goHome() { showPage('home-page'); loadCategories(); }
         function showToast(message) { const existing = document.querySelector('.toast'); if (existing) existing.remove(); const toast = document.createElement('div'); toast.className = 'toast'; toast.textContent = message; document.body.appendChild(toast); setTimeout(() => toast.remove(), 2000); }
 
         loadCategories();
