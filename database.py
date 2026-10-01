@@ -41,12 +41,12 @@ async def init_db():
             await conn.executemany(
                 "INSERT INTO categories (id, name, image) VALUES ($1, $2, $3)",
                 [
-                    (1, 'Одноразки', '💨'),
+                    (1, 'Одноразки', ''),
                     (2, 'Под-системы', ''),
-                    (3, 'Жидкость', '💧'),
-                    (4, 'Расходники', '⚙️'),
+                    (3, 'Жидкость', ''),
+                    (4, 'Расходники', ''),
                     (5, 'Жевательный табак', ''),
-                    (6, 'Кальяны', '🪝'),
+                    (6, 'Кальяны', ''),
                 ]
             )
         
@@ -63,28 +63,26 @@ async def get_categories():
         await conn.close()
 
 async def get_all_categories():
-    """Получить все категории (для админки)"""
     return await get_categories()
 
-async def add_category(name, emoji):
-    """Добавить новую категорию"""
+async def add_category(name, image_url):
+    """Добавить новую категорию с фото"""
     conn = await get_db()
     try:
         row = await conn.fetchrow("SELECT MAX(id) as max_id FROM categories")
         new_id = (row['max_id'] or 0) + 1
         await conn.execute(
             "INSERT INTO categories (id, name, image) VALUES ($1, $2, $3)",
-            new_id, name, emoji
+            new_id, name, image_url
         )
         return new_id
     finally:
         await conn.close()
 
 async def delete_category(category_id):
-    """Удалить категорию. Возвращает True если удалено, False если есть товары"""
+    """Удалить категорию. Возвращает (success, products_count)"""
     conn = await get_db()
     try:
-        # Проверяем есть ли товары в этой категории
         count = await conn.fetchval("SELECT COUNT(*) FROM products WHERE category = (SELECT name FROM categories WHERE id=$1)", category_id)
         if count > 0:
             return False, count
@@ -106,7 +104,6 @@ async def get_products(category):
         await conn.close()
 
 async def get_products_by_ids(ids):
-    """Получить товары по списку ID (для избранного)"""
     if not ids:
         return []
     conn = await get_db()
