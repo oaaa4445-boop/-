@@ -69,13 +69,13 @@ admin_router_instance.bot = bot
 
 dp.include_router(admin_router_instance)
 
-START_TEXT = """🔥 Поехали без лирики:
-— Стартовые наборы? Есть.
-— Вкусы, от которых взлетаешь? Есть.
-— Быстрая доставка по Екб? Ага.
-Ты в Cloud Shop. — и за 2 минуты подберём то, что зацепит.
+START_TEXT = """PUFFY.
 
-Что бы посмотреть наш ассортимент просто нажми кнопку «Открыть приложение»"""
+Коллекция топовых девайсов и вкусов.
+Быстрая доставка по Екб.
+Без компромиссов.
+
+Открывай приложение 👇"""
 
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
@@ -100,7 +100,7 @@ async def handle_webapp_data(message: types.Message):
     try:
         data = json.loads(message.web_app_data.data)
         if data.get("type") == "order":
-            order_text = f"🛒 НОВЫЙ ЗАКАЗ\n\n👤 {message.from_user.full_name}\n📱 @{message.from_user.username}\n\n Состав:\n"
+            order_text = f"🛒 НОВЫЙ ЗАКАЗ\n\n👤 {message.from_user.full_name}\n📱 @{message.from_user.username}\n\n📦 Состав:\n"
             total = 0
             for item in data["items"]:
                 item_sum = item["price"] * item["quantity"]
@@ -123,7 +123,7 @@ async def main():
     await site.start()
     print(f"🌐 Веб-сервер запущен: http://0.0.0.0:{WEB_PORT}")
     
-    print(" Бот запущен...")
+    print("🤖 Бот запущен...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
