@@ -10,7 +10,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import BOT_TOKEN, ADMIN_ID, WEB_PORT
 from admin import router as admin_router
-from database import init_db, get_categories, get_products, save_user
+from database import init_db, get_categories, get_products, get_products_by_ids, save_user
 
 WEBAPP_DIR = Path(__file__).parent / "webapp"
 
@@ -31,12 +31,26 @@ async def api_categories(request):
 async def api_products(request):
     return web.json_response(await get_products(request.match_info["category"]))
 
+async def api_products_by_ids(request):
+    """Получить товары по списку ID (для избранного)"""
+    ids_str = request.query.get("ids", "")
+    if not ids_str:
+        return web.json_response([])
+    
+    try:
+        ids = [int(x.strip()) for x in ids_str.split(",") if x.strip()]
+        products = await get_products_by_ids(ids)
+        return web.json_response(products)
+    except (ValueError, TypeError):
+        return web.json_response([])
+
 def create_web_app():
     app = web.Application()
     app.router.add_get("/", handle_index)
     app.router.add_get("/static/{filename}", handle_static)
     app.router.add_get("/api/categories", api_categories)
     app.router.add_get("/api/products/{category}", api_products)
+    app.router.add_get("/api/products-by-ids", api_products_by_ids)
     return app
 
 bot = Bot(token=BOT_TOKEN)
@@ -80,7 +94,7 @@ async def handle_webapp_data(message: types.Message):
     try:
         data = json.loads(message.web_app_data.data)
         if data.get("type") == "order":
-            order_text = f"🛒 НОВЫЙ ЗАКАЗ\n\n👤 {message.from_user.full_name}\n📱 @{message.from_user.username}\n\n Состав:\n"
+            order_text = f"🛒 НОВЫЙ ЗАКАЗ\n\n👤 {message.from_user.full_name}\n📱 @{message.from_user.username}\n\n📦 Состав:\n"
             total = 0
             for item in data["items"]:
                 item_sum = item["price"] * item["quantity"]
@@ -103,7 +117,7 @@ async def main():
     await site.start()
     print(f"🌐 Веб-сервер запущен: http://0.0.0.0:{WEB_PORT}")
     
-    print(" Бот запущен...")
+    print("🤖 Бот запущен...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
