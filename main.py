@@ -7,6 +7,7 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart
 from aiogram.types import WebAppInfo, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
+import traceback
 
 from config import BOT_TOKEN, ADMIN_ID, WEB_PORT
 from admin import router as admin_router
@@ -79,28 +80,50 @@ START_TEXT = """PUFFY.
 
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
-    await save_user(
-        message.from_user.id,
-        message.from_user.username,
-        message.from_user.full_name
-    )
+    """Обработчик /start с полной защитой от ошибок"""
+    print(f"📩 Получен /start от пользователя {message.from_user.id}")
     
-    webapp_url = os.environ.get("RENDER_EXTERNAL_URL", f"http://localhost:{WEB_PORT}")
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="🛍 Открыть приложение", web_app=WebAppInfo(url=webapp_url))],
-            [KeyboardButton(text="📞 Связаться с менеджером", url="https://t.me/ghjkIz")]
-        ],
-        resize_keyboard=True
-    )
-    await message.answer(START_TEXT, reply_markup=keyboard)
+    # 1. Пытаемся сохранить пользователя (но не блокируем работу если ошибка)
+    try:
+        username = message.from_user.username or ""
+        full_name = message.from_user.full_name or ""
+        await save_user(message.from_user.id, username, full_name)
+        print(f"✅ Пользователь {message.from_user.id} сохранён в БД")
+    except Exception as e:
+        print(f"⚠️ Ошибка сохранения пользователя: {e}")
+        traceback.print_exc()
+        # Продолжаем работу даже если не удалось сохранить
+    
+    # 2. Формируем клавиатуру
+    try:
+        webapp_url = os.environ.get("RENDER_EXTERNAL_URL", f"http://localhost:{WEB_PORT}")
+        keyboard = ReplyKeyboardMarkup(
+            keyboard=[
+                [KeyboardButton(text="🛍 Открыть приложение", web_app=WebAppInfo(url=webapp_url))],
+                [KeyboardButton(text=" Связаться с менеджером", url="https://t.me/ghjkIz")]
+            ],
+            resize_keyboard=True
+        )
+        
+        # 3. Отправляем приветствие
+        await message.answer(START_TEXT, reply_markup=keyboard)
+        print(f"✅ Приветствие отправлено пользователю {message.from_user.id}")
+        
+    except Exception as e:
+        print(f" Ошибка отправки приветствия: {e}")
+        traceback.print_exc()
+        # Пробуем отправить хотя бы текст без клавиатуры
+        try:
+            await message.answer(START_TEXT)
+        except Exception as e2:
+            print(f"❌❌ Критическая ошибка: {e2}")
 
 @dp.message(F.web_app_data)
 async def handle_webapp_data(message: types.Message):
     try:
         data = json.loads(message.web_app_data.data)
         if data.get("type") == "order":
-            order_text = f"🛒 НОВЫЙ ЗАКАЗ\n\n👤 {message.from_user.full_name}\n📱 @{message.from_user.username}\n\n📦 Состав:\n"
+            order_text = f"🛒 НОВЫЙ ЗАКАЗ\n\n👤 {message.from_user.full_name}\n @{message.from_user.username}\n\n Состав:\n"
             total = 0
             for item in data["items"]:
                 item_sum = item["price"] * item["quantity"]
@@ -111,6 +134,7 @@ async def handle_webapp_data(message: types.Message):
             await bot.send_message(ADMIN_ID, order_text)
     except Exception as e:
         print(f"Ошибка обработки заказа: {e}")
+        traceback.print_exc()
 
 async def main():
     await init_db()
@@ -121,7 +145,7 @@ async def main():
     await runner.setup()
     site = web.TCPSite(runner, "0.0.0.0", WEB_PORT)
     await site.start()
-    print(f"🌐 Веб-сервер запущен: http://0.0.0.0:{WEB_PORT}")
+    print(f" Веб-сервер запущен: http://0.0.0.0:{WEB_PORT}")
     
     print("🤖 Бот запущен...")
     await dp.start_polling(bot)
