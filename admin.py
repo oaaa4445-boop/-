@@ -21,7 +21,7 @@ class AddProduct(StatesGroup):
 
 class AddCategory(StatesGroup):
     waiting_for_name = State()
-    waiting_for_emoji = State()
+    waiting_for_photo = State()
 
 class SendMessage(StatesGroup):
     waiting_for_text = State()
@@ -30,9 +30,9 @@ def admin_menu():
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="➕ Добавить товар"), KeyboardButton(text="📋 Список товаров")],
-            [KeyboardButton(text="📂 Категории"), KeyboardButton(text="➕ Добавить категорию")],
-            [KeyboardButton(text="📦 Заказы"), KeyboardButton(text="📊 Статистика")],
-            [KeyboardButton(text=" Рассылка"), KeyboardButton(text=" Пользователи")],
+            [KeyboardButton(text=" Категории"), KeyboardButton(text="➕ Добавить категорию")],
+            [KeyboardButton(text=" Заказы"), KeyboardButton(text="📊 Статистика")],
+            [KeyboardButton(text="📢 Рассылка"), KeyboardButton(text="👥 Пользователи")],
             [KeyboardButton(text="❌ Закрыть админку")]
         ],
         resize_keyboard=True
@@ -57,15 +57,15 @@ def get_bot(router_obj):
 async def cmd_admin(message: types.Message, state: FSMContext):
     admin_id = get_admin_id(router)
     if not is_admin(message.from_user.id, admin_id):
-        await message.answer(" У вас нет прав администратора")
+        await message.answer("⛔ У вас нет прав администратора")
         return
     await state.clear()
     await message.answer("⚙️ <b>Панель администратора</b>\n\nВыберите действие:", reply_markup=admin_menu(), parse_mode="HTML")
 
-@router.message(F.text == "❌ Закрыть админку")
+@router.message(F.text == " Закрыть админку")
 async def close_admin(message: types.Message, state: FSMContext):
     await state.clear()
-    await message.answer("👋 Админ-панель закрыта", reply_markup=types.ReplyKeyboardRemove())
+    await message.answer(" Админ-панель закрыта", reply_markup=types.ReplyKeyboardRemove())
 
 # ========== УПРАВЛЕНИЕ КАТЕГОРИЯМИ ==========
 
@@ -78,15 +78,15 @@ async def list_categories(message: types.Message):
     categories = await get_all_categories()
     
     if not categories:
-        await message.answer("📂 Категории пусты", reply_markup=admin_menu())
+        await message.answer(" Категории пусты", reply_markup=admin_menu())
         return
     
-    text = " <b>Список категорий:</b>\n\n"
+    text = "📂 <b>Список категорий:</b>\n\n"
     keyboard = InlineKeyboardMarkup(inline_keyboard=[])
     
     for c in categories:
-        emoji = c['image'] or '📁'
-        text += f"{emoji} ID: {c['id']} | {c['name']}\n"
+        text += f"🆔 ID: {c['id']} | {c['name']}\n"
+        text += f"📸 Фото: {'✅ загружено' if c['image'] else '❌ нет'}\n\n"
         keyboard.inline_keyboard.append([
             InlineKeyboardButton(text=f"🗑 {c['name']}", callback_data=f"delcat_{c['id']}")
         ])
@@ -94,14 +94,14 @@ async def list_categories(message: types.Message):
     keyboard.inline_keyboard.append([InlineKeyboardButton(text="◀️ Назад", callback_data="back_admin")])
     await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
 
-@router.message(F.text == "➕ Добавить категорию")
+@router.message(F.text == " Добавить категорию")
 async def start_add_category(message: types.Message, state: FSMContext):
     admin_id = get_admin_id(router)
     if not is_admin(message.from_user.id, admin_id):
         return
     await state.set_state(AddCategory.waiting_for_name)
     await message.answer(
-        "➕ <b>Добавление категории</b>\n\n"
+        " <b>Добавление категории</b>\n\n"
         "📝 Шаг 1/2: Введите название категории:\n\n"
         "⚠️ /admin для отмены",
         reply_markup=close_admin_btn(),
@@ -111,30 +111,75 @@ async def start_add_category(message: types.Message, state: FSMContext):
 @router.message(AddCategory.waiting_for_name)
 async def process_category_name(message: types.Message, state: FSMContext):
     await state.update_data(name=message.text)
-    await state.set_state(AddCategory.waiting_for_emoji)
+    await state.set_state(AddCategory.waiting_for_photo)
     await message.answer(
-        "😀 Шаг 2/2: Отправьте эмодзи для категории\n\n"
-        "Например: 💨 🔋 💧 ⚙️  🪝\n\n"
+        "📸 Шаг 2/2: Отправьте <b>фотографию категории</b>\n\n"
+        "Просто перешлите фото или загрузите из галереи.\n"
+        "Или отправьте /skip чтобы пропустить фото\n\n"
         "⚠️ /admin для отмены",
-        reply_markup=close_admin_btn()
+        reply_markup=close_admin_btn(),
+        parse_mode="HTML"
     )
 
-@router.message(AddCategory.waiting_for_emoji)
-async def process_category_emoji(message: types.Message, state: FSMContext):
-    emoji = message.text.strip()
+@router.message(AddCategory.waiting_for_photo, F.text == "/skip")
+async def skip_category_photo(message: types.Message, state: FSMContext):
     data = await state.get_data()
-    
-    cat_id = await add_category(data['name'], emoji)
+    cat_id = await add_category(data['name'], "")
     await state.clear()
     
     await message.answer(
         f"✅ <b>Категория добавлена!</b>\n\n"
         f"🆔 ID: {cat_id}\n"
-        f"📝 Название: {data['name']}\n"
-        f"😀 Эмодзи: {emoji}",
+        f" Название: {data['name']}\n"
+        f"📸 Фото: не добавлено",
         reply_markup=admin_menu(),
         parse_mode="HTML"
     )
+
+@router.message(AddCategory.waiting_for_photo, F.photo)
+async def process_category_photo(message: types.Message, state: FSMContext):
+    admin_id = get_admin_id(router)
+    if not is_admin(message.from_user.id, admin_id):
+        return
+    
+    await message.answer("⏳ Загружаю фото...")
+    
+    photo = message.photo[-1]
+    bot = get_bot(router)
+    file = await bot.get_file(photo.file_id)
+    
+    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+        tmp_path = tmp.name
+    
+    try:
+        await bot.download_file(file.file_path, tmp_path)
+        image_url = await upload_photo(tmp_path)
+        
+        if image_url:
+            data = await state.get_data()
+            cat_id = await add_category(data['name'], image_url)
+            await state.clear()
+            
+            await message.answer_photo(
+                photo=image_url,
+                caption=(
+                    f"✅ <b>Категория добавлена!</b>\n\n"
+                    f"🆔 ID: {cat_id}\n"
+                    f"📝 Название: {data['name']}\n"
+                    f" Фото: загружено в Cloudinary"
+                ),
+                parse_mode="HTML",
+                reply_markup=admin_menu()
+            )
+        else:
+            await message.answer("❌ Не удалось загрузить фото. Попробуйте ещё раз или отправьте /skip", reply_markup=close_admin_btn())
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+@router.message(AddCategory.waiting_for_photo, ~F.photo)
+async def process_category_photo_wrong(message: types.Message, state: FSMContext):
+    await message.answer("❌ Это не фотография. Пожалуйста, отправьте <b>фото категории</b> или /skip:\n\n⚠️ /admin для отмены", reply_markup=close_admin_btn(), parse_mode="HTML")
 
 @router.callback_query(F.data.startswith("delcat_"))
 async def delete_category_handler(callback: types.CallbackQuery):
@@ -146,17 +191,17 @@ async def delete_category_handler(callback: types.CallbackQuery):
         await callback.answer("✅ Категория удалена")
         await callback.message.edit_text("🗑 Категория удалена. Выберите действие:", reply_markup=admin_menu())
     else:
-        await callback.answer(f"️ Нельзя удалить: в категории {products_count} товаров", show_alert=True)
+        await callback.answer(f"⚠️ Нельзя удалить: в категории {products_count} товаров", show_alert=True)
 
 # ========== ДОБАВЛЕНИЕ ТОВАРА ==========
 
-@router.message(F.text == "➕ Добавить товар")
+@router.message(F.text == " Добавить товар")
 async def start_add_product(message: types.Message, state: FSMContext):
     admin_id = get_admin_id(router)
     if not is_admin(message.from_user.id, admin_id):
         return
     await state.set_state(AddProduct.waiting_for_name)
-    await message.answer("➕ <b>Добавление товара</b>\n\n📝 Шаг 1/5: Введите название товара:", reply_markup=close_admin_btn(), parse_mode="HTML")
+    await message.answer("➕ <b>Добавление товара</b>\n\n Шаг 1/5: Введите название товара:", reply_markup=close_admin_btn(), parse_mode="HTML")
 
 @router.message(AddProduct.waiting_for_name)
 async def process_name(message: types.Message, state: FSMContext):
@@ -230,13 +275,12 @@ async def show_category_buttons(message: types.Message):
     keyboard = InlineKeyboardMarkup(inline_keyboard=[])
     
     for c in categories:
-        emoji = c['image'] or '📁'
         keyboard.inline_keyboard.append([
-            InlineKeyboardButton(text=f"{emoji} {c['name']}", callback_data=f"cat_{c['name']}")
+            InlineKeyboardButton(text=c['name'], callback_data=f"cat_{c['name']}")
         ])
     
     keyboard.inline_keyboard.append([InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_add")])
-    await message.answer("📂 Шаг 5/5: Выберите категорию:", reply_markup=keyboard)
+    await message.answer(" Шаг 5/5: Выберите категорию:", reply_markup=keyboard)
 
 @router.callback_query(F.data.startswith("cat_"))
 async def process_category(callback: types.CallbackQuery, state: FSMContext):
@@ -305,7 +349,7 @@ async def list_products(message: types.Message):
             InlineKeyboardButton(text=f"🗑 {p['name'][:20]}", callback_data=f"del_{p['id']}")
         ])
     
-    keyboard.inline_keyboard.append([InlineKeyboardButton(text="◀️ Назад", callback_data="back_admin")])
+    keyboard.inline_keyboard.append([InlineKeyboardButton(text="️ Назад", callback_data="back_admin")])
     await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
 
 @router.callback_query(F.data.startswith("del_"))
@@ -331,12 +375,12 @@ async def back_to_admin(callback: types.CallbackQuery):
     await callback.message.edit_text("⚙️ Панель администратора", reply_markup=admin_menu())
     await callback.answer()
 
-@router.message(F.text == " Заказы")
+@router.message(F.text == "📦 Заказы")
 async def show_orders(message: types.Message):
     admin_id = get_admin_id(router)
     if not is_admin(message.from_user.id, admin_id):
         return
-    await message.answer(" Заказы приходят вам в личные сообщения от бота.", reply_markup=admin_menu())
+    await message.answer("📦 Заказы приходят вам в личные сообщения от бота.", reply_markup=admin_menu())
 
 @router.message(F.text == "📊 Статистика")
 async def show_stats(message: types.Message):
@@ -350,9 +394,9 @@ async def show_stats(message: types.Message):
     
     text = (
         "📊 <b>Статистика магазина</b>\n\n"
-        f" Товаров: {products_count}\n"
+        f"📦 Товаров: {products_count}\n"
         f"📂 Категорий: {len(categories)}\n"
-        f"👥 Пользователей: {users_count}"
+        f" Пользователей: {users_count}"
     )
     await message.answer(text, reply_markup=admin_menu(), parse_mode="HTML")
 
@@ -362,7 +406,7 @@ async def start_broadcast(message: types.Message, state: FSMContext):
     if not is_admin(message.from_user.id, admin_id):
         return
     await state.set_state(SendMessage.waiting_for_text)
-    await message.answer("📢 Введите текст рассылки:\n\n⚠️ /admin для отмены", reply_markup=close_admin_btn())
+    await message.answer(" Введите текст рассылки:\n\n️ /admin для отмены", reply_markup=close_admin_btn())
 
 @router.message(SendMessage.waiting_for_text)
 async def process_broadcast(message: types.Message, state: FSMContext):
@@ -388,7 +432,7 @@ async def process_broadcast(message: types.Message, state: FSMContext):
         except Exception:
             failed += 1
     
-    await message.answer(f"✅ Рассылка завершена!\n\n📤 Отправлено: {sent}\n❌ Ошибок: {failed}", reply_markup=admin_menu())
+    await message.answer(f"✅ Рассылка завершена!\n\n Отправлено: {sent}\n❌ Ошибок: {failed}", reply_markup=admin_menu())
 
 @router.message(F.text == "👥 Пользователи")
 async def show_users(message: types.Message):
