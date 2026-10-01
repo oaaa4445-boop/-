@@ -12,6 +12,7 @@ from cloudinary_utils import upload_photo, delete_photo
 
 router = Router()
 
+# ========== СОСТОЯНИЯ FSM ==========
 class AddProduct(StatesGroup):
     waiting_for_name = State()
     waiting_for_description = State()
@@ -26,24 +27,37 @@ class AddCategory(StatesGroup):
 class SendMessage(StatesGroup):
     waiting_for_text = State()
 
+# ========== НАЗВАНИЯ КНОПОК (используются везде) ==========
+BTN_ADD_PRODUCT = "➕ Добавить товар"
+BTN_LIST_PRODUCTS = "📋 Список товаров"
+BTN_CATEGORIES = "📂 Категории"
+BTN_ADD_CATEGORY = "➕ Добавить категорию"
+BTN_ORDERS = "📦 Заказы"
+BTN_STATS = " Статистика"
+BTN_BROADCAST = "📢 Рассылка"
+BTN_USERS = "👥 Пользователи"
+BTN_CLOSE = "❌ Закрыть админку"
+
+# ========== МЕНЮ ==========
 def admin_menu():
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="➕ Добавить товар"), KeyboardButton(text="📋 Список товаров")],
-            [KeyboardButton(text=" Категории"), KeyboardButton(text="➕ Добавить категорию")],
-            [KeyboardButton(text=" Заказы"), KeyboardButton(text="📊 Статистика")],
-            [KeyboardButton(text="📢 Рассылка"), KeyboardButton(text="👥 Пользователи")],
-            [KeyboardButton(text="❌ Закрыть админку")]
+            [KeyboardButton(text=BTN_ADD_PRODUCT), KeyboardButton(text=BTN_LIST_PRODUCTS)],
+            [KeyboardButton(text=BTN_CATEGORIES), KeyboardButton(text=BTN_ADD_CATEGORY)],
+            [KeyboardButton(text=BTN_ORDERS), KeyboardButton(text=BTN_STATS)],
+            [KeyboardButton(text=BTN_BROADCAST), KeyboardButton(text=BTN_USERS)],
+            [KeyboardButton(text=BTN_CLOSE)]
         ],
         resize_keyboard=True
     )
 
 def close_admin_btn():
     return ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text="❌ Закрыть админку")]],
+        keyboard=[[KeyboardButton(text=BTN_CLOSE)]],
         resize_keyboard=True
     )
 
+# ========== ПРОВЕРКА АДМИНА ==========
 def is_admin(user_id: int, admin_id: int) -> bool:
     return user_id == admin_id
 
@@ -52,6 +66,8 @@ def get_admin_id(router_obj):
 
 def get_bot(router_obj):
     return getattr(router_obj, 'bot', None)
+
+# ========== ОБРАБОТЧИКИ ==========
 
 @router.message(Command("admin"))
 async def cmd_admin(message: types.Message, state: FSMContext):
@@ -62,14 +78,14 @@ async def cmd_admin(message: types.Message, state: FSMContext):
     await state.clear()
     await message.answer("⚙️ <b>Панель администратора</b>\n\nВыберите действие:", reply_markup=admin_menu(), parse_mode="HTML")
 
-@router.message(F.text == " Закрыть админку")
+@router.message(F.text == BTN_CLOSE)
 async def close_admin(message: types.Message, state: FSMContext):
     await state.clear()
-    await message.answer(" Админ-панель закрыта", reply_markup=types.ReplyKeyboardRemove())
+    await message.answer("👋 Админ-панель закрыта", reply_markup=types.ReplyKeyboardRemove())
 
 # ========== УПРАВЛЕНИЕ КАТЕГОРИЯМИ ==========
 
-@router.message(F.text == "📂 Категории")
+@router.message(F.text == BTN_CATEGORIES)
 async def list_categories(message: types.Message):
     admin_id = get_admin_id(router)
     if not is_admin(message.from_user.id, admin_id):
@@ -78,7 +94,7 @@ async def list_categories(message: types.Message):
     categories = await get_all_categories()
     
     if not categories:
-        await message.answer(" Категории пусты", reply_markup=admin_menu())
+        await message.answer("📂 Категории пусты", reply_markup=admin_menu())
         return
     
     text = "📂 <b>Список категорий:</b>\n\n"
@@ -94,16 +110,16 @@ async def list_categories(message: types.Message):
     keyboard.inline_keyboard.append([InlineKeyboardButton(text="◀️ Назад", callback_data="back_admin")])
     await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
 
-@router.message(F.text == " Добавить категорию")
+@router.message(F.text == BTN_ADD_CATEGORY)
 async def start_add_category(message: types.Message, state: FSMContext):
     admin_id = get_admin_id(router)
     if not is_admin(message.from_user.id, admin_id):
         return
     await state.set_state(AddCategory.waiting_for_name)
     await message.answer(
-        " <b>Добавление категории</b>\n\n"
+        "➕ <b>Добавление категории</b>\n\n"
         "📝 Шаг 1/2: Введите название категории:\n\n"
-        "⚠️ /admin для отмены",
+        "️ /admin для отмены",
         reply_markup=close_admin_btn(),
         parse_mode="HTML"
     )
@@ -114,7 +130,6 @@ async def process_category_name(message: types.Message, state: FSMContext):
     await state.set_state(AddCategory.waiting_for_photo)
     await message.answer(
         "📸 Шаг 2/2: Отправьте <b>фотографию категории</b>\n\n"
-        "Просто перешлите фото или загрузите из галереи.\n"
         "Или отправьте /skip чтобы пропустить фото\n\n"
         "⚠️ /admin для отмены",
         reply_markup=close_admin_btn(),
@@ -130,7 +145,7 @@ async def skip_category_photo(message: types.Message, state: FSMContext):
     await message.answer(
         f"✅ <b>Категория добавлена!</b>\n\n"
         f"🆔 ID: {cat_id}\n"
-        f" Название: {data['name']}\n"
+        f"📝 Название: {data['name']}\n"
         f"📸 Фото: не добавлено",
         reply_markup=admin_menu(),
         parse_mode="HTML"
@@ -164,15 +179,15 @@ async def process_category_photo(message: types.Message, state: FSMContext):
                 photo=image_url,
                 caption=(
                     f"✅ <b>Категория добавлена!</b>\n\n"
-                    f"🆔 ID: {cat_id}\n"
+                    f" ID: {cat_id}\n"
                     f"📝 Название: {data['name']}\n"
-                    f" Фото: загружено в Cloudinary"
+                    f"📸 Фото: загружено в Cloudinary"
                 ),
                 parse_mode="HTML",
                 reply_markup=admin_menu()
             )
         else:
-            await message.answer("❌ Не удалось загрузить фото. Попробуйте ещё раз или отправьте /skip", reply_markup=close_admin_btn())
+            await message.answer(" Не удалось загрузить фото. Попробуйте ещё раз или отправьте /skip", reply_markup=close_admin_btn())
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
@@ -191,11 +206,11 @@ async def delete_category_handler(callback: types.CallbackQuery):
         await callback.answer("✅ Категория удалена")
         await callback.message.edit_text("🗑 Категория удалена. Выберите действие:", reply_markup=admin_menu())
     else:
-        await callback.answer(f"⚠️ Нельзя удалить: в категории {products_count} товаров", show_alert=True)
+        await callback.answer(f"️ Нельзя удалить: в категории {products_count} товаров", show_alert=True)
 
 # ========== ДОБАВЛЕНИЕ ТОВАРА ==========
 
-@router.message(F.text == " Добавить товар")
+@router.message(F.text == BTN_ADD_PRODUCT)
 async def start_add_product(message: types.Message, state: FSMContext):
     admin_id = get_admin_id(router)
     if not is_admin(message.from_user.id, admin_id):
@@ -280,7 +295,7 @@ async def show_category_buttons(message: types.Message):
         ])
     
     keyboard.inline_keyboard.append([InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_add")])
-    await message.answer(" Шаг 5/5: Выберите категорию:", reply_markup=keyboard)
+    await message.answer("📂 Шаг 5/5: Выберите категорию:", reply_markup=keyboard)
 
 @router.callback_query(F.data.startswith("cat_"))
 async def process_category(callback: types.CallbackQuery, state: FSMContext):
@@ -299,10 +314,10 @@ async def process_category(callback: types.CallbackQuery, state: FSMContext):
         f"✅ <b>Товар добавлен!</b>\n\n"
         f"🆔 ID: {product_id}\n"
         f"📦 Название: {data['name']}\n"
-        f"📝 Описание: {data['description']}\n"
+        f" Описание: {data['description']}\n"
         f"💰 Цена: {data['price']} ₽\n"
         f"📂 Категория: {category}\n"
-        f"📸 Фото: {'загружено' if image_url else 'не добавлено'}"
+        f" Фото: {'загружено' if image_url else 'не добавлено'}"
     )
     
     if image_url:
@@ -324,7 +339,7 @@ async def cancel_add(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_text("❌ Добавление отменено", reply_markup=admin_menu())
     await callback.answer()
 
-@router.message(F.text == "📋 Список товаров")
+@router.message(F.text == BTN_LIST_PRODUCTS)
 async def list_products(message: types.Message):
     admin_id = get_admin_id(router)
     if not is_admin(message.from_user.id, admin_id):
@@ -340,7 +355,7 @@ async def list_products(message: types.Message):
         await message.answer("📋 Список товаров пуст", reply_markup=admin_menu())
         return
     
-    text = "📋 <b>Список товаров:</b>\n\n"
+    text = " <b>Список товаров:</b>\n\n"
     keyboard = InlineKeyboardMarkup(inline_keyboard=[])
     
     for p in products:
@@ -349,7 +364,7 @@ async def list_products(message: types.Message):
             InlineKeyboardButton(text=f"🗑 {p['name'][:20]}", callback_data=f"del_{p['id']}")
         ])
     
-    keyboard.inline_keyboard.append([InlineKeyboardButton(text="️ Назад", callback_data="back_admin")])
+    keyboard.inline_keyboard.append([InlineKeyboardButton(text="◀️ Назад", callback_data="back_admin")])
     await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
 
 @router.callback_query(F.data.startswith("del_"))
@@ -375,14 +390,14 @@ async def back_to_admin(callback: types.CallbackQuery):
     await callback.message.edit_text("⚙️ Панель администратора", reply_markup=admin_menu())
     await callback.answer()
 
-@router.message(F.text == "📦 Заказы")
+@router.message(F.text == BTN_ORDERS)
 async def show_orders(message: types.Message):
     admin_id = get_admin_id(router)
     if not is_admin(message.from_user.id, admin_id):
         return
     await message.answer("📦 Заказы приходят вам в личные сообщения от бота.", reply_markup=admin_menu())
 
-@router.message(F.text == "📊 Статистика")
+@router.message(F.text == BTN_STATS)
 async def show_stats(message: types.Message):
     admin_id = get_admin_id(router)
     if not is_admin(message.from_user.id, admin_id):
@@ -394,19 +409,19 @@ async def show_stats(message: types.Message):
     
     text = (
         "📊 <b>Статистика магазина</b>\n\n"
-        f"📦 Товаров: {products_count}\n"
+        f" Товаров: {products_count}\n"
         f"📂 Категорий: {len(categories)}\n"
-        f" Пользователей: {users_count}"
+        f"👥 Пользователей: {users_count}"
     )
     await message.answer(text, reply_markup=admin_menu(), parse_mode="HTML")
 
-@router.message(F.text == "📢 Рассылка")
+@router.message(F.text == BTN_BROADCAST)
 async def start_broadcast(message: types.Message, state: FSMContext):
     admin_id = get_admin_id(router)
     if not is_admin(message.from_user.id, admin_id):
         return
     await state.set_state(SendMessage.waiting_for_text)
-    await message.answer(" Введите текст рассылки:\n\n️ /admin для отмены", reply_markup=close_admin_btn())
+    await message.answer("📢 Введите текст рассылки:\n\n⚠️ /admin для отмены", reply_markup=close_admin_btn())
 
 @router.message(SendMessage.waiting_for_text)
 async def process_broadcast(message: types.Message, state: FSMContext):
@@ -432,9 +447,9 @@ async def process_broadcast(message: types.Message, state: FSMContext):
         except Exception:
             failed += 1
     
-    await message.answer(f"✅ Рассылка завершена!\n\n Отправлено: {sent}\n❌ Ошибок: {failed}", reply_markup=admin_menu())
+    await message.answer(f"✅ Рассылка завершена!\n\n📤 Отправлено: {sent}\n❌ Ошибок: {failed}", reply_markup=admin_menu())
 
-@router.message(F.text == "👥 Пользователи")
+@router.message(F.text == BTN_USERS)
 async def show_users(message: types.Message):
     admin_id = get_admin_id(router)
     if not is_admin(message.from_user.id, admin_id):
