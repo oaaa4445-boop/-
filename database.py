@@ -29,12 +29,18 @@ async def init_db():
         """)
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS users (
-                user_id INTEGER PRIMARY KEY,
+                user_id BIGINT PRIMARY KEY,
                 username TEXT,
                 full_name TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """)
+        
+        # Добавляем поле created_at если его нет (для старых таблиц)
+        try:
+            await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+        except:
+            pass
         
         existing = await conn.fetch("SELECT COUNT(*) FROM categories")
         if existing[0]['count'] == 0:
@@ -116,7 +122,6 @@ async def get_products_by_ids(ids):
         await conn.close()
 
 async def search_products(query):
-    """Поиск товаров по названию и описанию"""
     if not query or len(query.strip()) < 2:
         return []
     
@@ -156,10 +161,18 @@ async def delete_product(product_id):
         await conn.close()
 
 async def save_user(user_id, username, full_name):
+    """Сохраняет пользователя в БД. Безопасно обрабатывает None значения."""
     conn = await get_db()
     try:
+        # Преобразуем None в пустую строку для безопасности
+        username = username if username else ""
+        full_name = full_name if full_name else ""
+        
         await conn.execute(
-            "INSERT INTO users (user_id, username, full_name) VALUES ($1, $2, $3) ON CONFLICT (user_id) DO NOTHING",
+            """INSERT INTO users (user_id, username, full_name) 
+               VALUES ($1, $2, $3) 
+               ON CONFLICT (user_id) 
+               DO UPDATE SET username = $2, full_name = $3""",
             user_id, username, full_name
         )
     finally:
