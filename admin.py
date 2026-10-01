@@ -3,8 +3,11 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+import os
+import tempfile
 
 from database import add_product, delete_product, get_product_count, get_user_count, get_db
+from cloudinary_utils import upload_photo, delete_photo
 
 router = Router()
 
@@ -12,7 +15,7 @@ class AddProduct(StatesGroup):
     waiting_for_name = State()
     waiting_for_description = State()
     waiting_for_price = State()
-    waiting_for_image = State()
+    waiting_for_photo = State()
     waiting_for_category = State()
 
 class SendMessage(StatesGroup):
@@ -23,7 +26,7 @@ def admin_menu():
         keyboard=[
             [KeyboardButton(text="➕ Добавить товар"), KeyboardButton(text="📋 Список товаров")],
             [KeyboardButton(text="📦 Заказы"), KeyboardButton(text="📊 Статистика")],
-            [KeyboardButton(text=" Рассылка"), KeyboardButton(text="👥 Пользователи")],
+            [KeyboardButton(text="📢 Рассылка"), KeyboardButton(text="👥 Пользователи")],
             [KeyboardButton(text="❌ Закрыть админку")]
         ],
         resize_keyboard=True
@@ -51,12 +54,12 @@ async def cmd_admin(message: types.Message, state: FSMContext):
         await message.answer("⛔ У вас нет прав администратора")
         return
     await state.clear()
-    await message.answer("⚙️ <b>Панель администратора</b>\n\nВыберите действие:", reply_markup=admin_menu(), parse_mode="HTML")
+    await message.answer("️ <b>Панель администратора</b>\n\nВыберите действие:", reply_markup=admin_menu(), parse_mode="HTML")
 
 @router.message(F.text == "❌ Закрыть админку")
 async def close_admin(message: types.Message, state: FSMContext):
     await state.clear()
-    await message.answer(" Админ-панель закрыта", reply_markup=types.ReplyKeyboardRemove())
+    await message.answer("👋 Админ-панель закрыта", reply_markup=types.ReplyKeyboardRemove())
 
 @router.message(F.text == "➕ Добавить товар")
 async def start_add_product(message: types.Message, state: FSMContext):
@@ -64,13 +67,13 @@ async def start_add_product(message: types.Message, state: FSMContext):
     if not is_admin(message.from_user.id, admin_id):
         return
     await state.set_state(AddProduct.waiting_for_name)
-    await message.answer(" <b>Добавление товара</b>\n\n📝 Шаг 1/5: Введите название товара:", reply_markup=close_admin_btn(), parse_mode="HTML")
+    await message.answer("➕ <b>Добавление товара</b>\n\n📝 Шаг 1/5: Введите название товара:", reply_markup=close_admin_btn(), parse_mode="HTML")
 
 @router.message(AddProduct.waiting_for_name)
 async def process_name(message: types.Message, state: FSMContext):
     await state.update_data(name=message.text)
     await state.set_state(AddProduct.waiting_for_description)
-    await message.answer("📝 Шаг 2/5: Введите описание товара:\n\n⚠️ /admin для отмены", reply_markup=close_admin_btn())
+    await message.answer("📝 Шаг 2/5: Введите описание товара:\n\n️ /admin для отмены", reply_markup=close_admin_btn())
 
 @router.message(AddProduct.waiting_for_description)
 async def process_description(message: types.Message, state: FSMContext):
@@ -83,10 +86,10 @@ async def process_price(message: types.Message, state: FSMContext):
     try:
         price = float(message.text.replace(",", "."))
         await state.update_data(price=price)
-        await state.set_state(AddProduct.waiting_for_image)
+        await state.set_state(AddProduct.waiting_for_photo)
         await message.answer(
-            "📸 Шаг 4/5: Отправьте <b>ссылку на фото товара</b>\n\n"
-            "Например: https://example.com/photo.jpg\n\n"
+            " Шаг 4/5: Отправьте <b>фотографию товара</b>\n\n"
+            "Просто перешлите фото или загрузите из галереи.\n"
             "Или отправьте /skip чтобы пропустить фото\n\n"
             "⚠️ /admin для отмены",
             reply_markup=close_admin_btn(),
@@ -95,21 +98,44 @@ async def process_price(message: types.Message, state: FSMContext):
     except ValueError:
         await message.answer("❌ Неверная цена. Введите число (например: 1500):\n\n⚠️ /admin для отмены", reply_markup=close_admin_btn())
 
-@router.message(AddProduct.waiting_for_image, F.text == "/skip")
-async def skip_image(message: types.Message, state: FSMContext):
+@router.message(AddProduct.waiting_for_photo, F.text == "/skip")
+async def skip_photo(message: types.Message, state: FSMContext):
     await state.update_data(image="")
     await state.set_state(AddProduct.waiting_for_category)
     await show_category_buttons(message)
 
-@router.message(AddProduct.waiting_for_image)
-async def process_image(message: types.Message, state: FSMContext):
-    image_url = message.text.strip()
-    if image_url.startswith("http"):
-        await state.update_data(image=image_url)
-        await state.set_state(AddProduct.waiting_for_category)
-        await show_category_buttons(message)
-    else:
-        await message.answer("❌ Это не ссылка. Введите URL картинки (начинается с http) или отправьте /skip")
+@router.message(AddProduct.waiting_for_photo, F.photo)
+async def process_photo(message: types.Message, state: FSMContext):
+    admin_id = get_admin_id(router)
+    if not is_admin(message.from_user.id, admin_id):
+        return
+    
+    await message.answer("⏳ Загружаю фото...")
+    
+    photo = message.photo[-1]
+    bot = get_bot(router)
+    file = await bot.get_file(photo.file_id)
+    
+    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+        tmp_path = tmp.name
+    
+    try:
+        await bot.download_file(file.file_path, tmp_path)
+        image_url = await upload_photo(tmp_path)
+        
+        if image_url:
+            await state.update_data(image=image_url)
+            await state.set_state(AddProduct.waiting_for_category)
+            await show_category_buttons(message)
+        else:
+            await message.answer("❌ Не удалось загрузить фото. Попробуйте ещё раз или отправьте /skip", reply_markup=close_admin_btn())
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+@router.message(AddProduct.waiting_for_photo, ~F.photo)
+async def process_photo_wrong(message: types.Message, state: FSMContext):
+    await message.answer("❌ Это не фотография. Пожалуйста, отправьте <b>фото товара</b> или /skip:\n\n⚠️ /admin для отмены", reply_markup=close_admin_btn(), parse_mode="HTML")
 
 async def show_category_buttons(message: types.Message):
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -117,7 +143,7 @@ async def show_category_buttons(message: types.Message):
         [InlineKeyboardButton(text="🔋 Под-системы", callback_data="cat_Под-системы")],
         [InlineKeyboardButton(text="💧 Жидкость", callback_data="cat_Жидкость")],
         [InlineKeyboardButton(text="⚙️ Расходники", callback_data="cat_Расходники")],
-        [InlineKeyboardButton(text="🌿 Жевательный табак", callback_data="cat_Жевательный табак")],
+        [InlineKeyboardButton(text=" Жевательный табак", callback_data="cat_Жевательный табак")],
         [InlineKeyboardButton(text="🪝 Кальяны", callback_data="cat_Кальяны")],
         [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_add")]
     ])
@@ -128,8 +154,10 @@ async def process_category(callback: types.CallbackQuery, state: FSMContext):
     category = callback.data.replace("cat_", "")
     data = await state.get_data()
     
+    image_url = data.get("image", "")
+    
     product_id = await add_product(
-        category, data["name"], data["description"], data["price"], data.get("image", ""), ""
+        category, data["name"], data["description"], data["price"], image_url, ""
     )
     
     await state.clear()
@@ -137,16 +165,16 @@ async def process_category(callback: types.CallbackQuery, state: FSMContext):
     preview_text = (
         f"✅ <b>Товар добавлен!</b>\n\n"
         f"🆔 ID: {product_id}\n"
-        f"📦 Название: {data['name']}\n"
+        f" Название: {data['name']}\n"
         f"📝 Описание: {data['description']}\n"
         f"💰 Цена: {data['price']} ₽\n"
-        f" Категория: {category}\n"
-        f"📸 Фото: {'добавлено' if data.get('image') else 'не добавлено'}"
+        f"📂 Категория: {category}\n"
+        f"📸 Фото: {'загружено в Cloudinary' if image_url else 'не добавлено'}"
     )
     
-    if data.get("image"):
+    if image_url:
         await callback.message.answer_photo(
-            photo=data["image"],
+            photo=image_url,
             caption=preview_text,
             parse_mode="HTML",
             reply_markup=admin_menu()
@@ -160,7 +188,7 @@ async def process_category(callback: types.CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "cancel_add")
 async def cancel_add(callback: types.CallbackQuery, state: FSMContext):
     await state.clear()
-    await callback.message.edit_text("❌ Добавление отменено", reply_markup=admin_menu())
+    await callback.message.edit_text(" Добавление отменено", reply_markup=admin_menu())
     await callback.answer()
 
 @router.message(F.text == "📋 Список товаров")
@@ -171,7 +199,7 @@ async def list_products(message: types.Message):
     
     conn = await get_db()
     try:
-        products = await conn.fetch("SELECT id, name, price, category FROM products ORDER BY id DESC LIMIT 20")
+        products = await conn.fetch("SELECT id, name, price, category, image FROM products ORDER BY id DESC LIMIT 20")
     finally:
         await conn.close()
     
@@ -185,7 +213,7 @@ async def list_products(message: types.Message):
     for p in products:
         text += f"ID: {p['id']} | {p['name']} — {p['price']}₽ ({p['category']})\n"
         keyboard.inline_keyboard.append([
-            InlineKeyboardButton(text=f"🗑 {p['name'][:20]}", callback_data=f"del_{p['id']}")
+            InlineKeyboardButton(text=f" {p['name'][:20]}", callback_data=f"del_{p['id']}")
         ])
     
     keyboard.inline_keyboard.append([InlineKeyboardButton(text="◀️ Назад", callback_data="back_admin")])
@@ -194,13 +222,24 @@ async def list_products(message: types.Message):
 @router.callback_query(F.data.startswith("del_"))
 async def delete_product_handler(callback: types.CallbackQuery):
     product_id = int(callback.data.replace("del_", ""))
-    await delete_product(product_id)
+    
+    conn = await get_db()
+    try:
+        row = await conn.fetchrow("SELECT image FROM products WHERE id=$1", product_id)
+        image_url = row['image'] if row else None
+        await conn.execute("DELETE FROM products WHERE id=$1", product_id)
+    finally:
+        await conn.close()
+    
+    if image_url:
+        await delete_photo(image_url)
+    
     await callback.answer("✅ Товар удалён")
     await callback.message.edit_text("🗑 Товар удалён. Выберите действие:", reply_markup=admin_menu())
 
 @router.callback_query(F.data == "back_admin")
 async def back_to_admin(callback: types.CallbackQuery):
-    await callback.message.edit_text("⚙️ Панель администратора", reply_markup=admin_menu())
+    await callback.message.edit_text("️ Панель администратора", reply_markup=admin_menu())
     await callback.answer()
 
 @router.message(F.text == "📦 Заказы")
@@ -210,7 +249,7 @@ async def show_orders(message: types.Message):
         return
     await message.answer("📦 Заказы приходят вам в личные сообщения от бота.", reply_markup=admin_menu())
 
-@router.message(F.text == "📊 Статистика")
+@router.message(F.text == " Статистика")
 async def show_stats(message: types.Message):
     admin_id = get_admin_id(router)
     if not is_admin(message.from_user.id, admin_id):
@@ -243,12 +282,13 @@ async def process_broadcast(message: types.Message, state: FSMContext):
     text = message.text
     await state.clear()
     
+    from database import get_all_users
     user_ids = await get_all_users()
     bot = get_bot(router)
     sent = 0
     failed = 0
     
-    await message.answer(f"📢 Начинаю рассылку {len(user_ids)} пользователям...")
+    await message.answer(f" Начинаю рассылку {len(user_ids)} пользователям...")
     
     for user_id in user_ids:
         try:
@@ -257,7 +297,7 @@ async def process_broadcast(message: types.Message, state: FSMContext):
         except Exception:
             failed += 1
     
-    await message.answer(f"✅ Рассылка завершена!\n\n📤 Отправлено: {sent}\n❌ Ошибок: {failed}", reply_markup=admin_menu())
+    await message.answer(f"✅ Рассылка завершена!\n\n📤 Отправлено: {sent}\n Ошибок: {failed}", reply_markup=admin_menu())
 
 @router.message(F.text == "👥 Пользователи")
 async def show_users(message: types.Message):
@@ -275,7 +315,7 @@ async def show_users(message: types.Message):
         await message.answer("👥 Пользователей пока нет", reply_markup=admin_menu())
         return
     
-    text = " <b>Последние пользователи:</b>\n\n"
+    text = "👥 <b>Последние пользователи:</b>\n\n"
     for u in users:
         username = f"@{u['username']}" if u['username'] else "без username"
         text += f"• {u['full_name']} ({username}) — ID: {u['user_id']}\n"
