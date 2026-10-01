@@ -36,7 +36,14 @@ async def init_db():
             );
         """)
         
-        # Добавляем поле created_at если его нет (для старых таблиц)
+        # Исправляем тип user_id для старых таблиц (INTEGER → BIGINT)
+        try:
+            await conn.execute("ALTER TABLE users ALTER COLUMN user_id TYPE BIGINT")
+            print("✅ Тип user_id изменён на BIGINT")
+        except Exception as e:
+            print(f"⚠️ Не удалось изменить тип user_id: {e}")
+        
+        # Добавляем поле created_at если его нет
         try:
             await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
         except:
@@ -161,16 +168,15 @@ async def delete_product(product_id):
         await conn.close()
 
 async def save_user(user_id, username, full_name):
-    """Сохраняет пользователя в БД. Безопасно обрабатывает None значения."""
+    """Сохраняет пользователя в БД. BIGINT для user_id."""
     conn = await get_db()
     try:
-        # Преобразуем None в пустую строку для безопасности
         username = username if username else ""
         full_name = full_name if full_name else ""
         
         await conn.execute(
             """INSERT INTO users (user_id, username, full_name) 
-               VALUES ($1, $2, $3) 
+               VALUES ($1::bigint, $2, $3) 
                ON CONFLICT (user_id) 
                DO UPDATE SET username = $2, full_name = $3""",
             user_id, username, full_name
