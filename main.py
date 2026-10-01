@@ -13,6 +13,7 @@ from config import BOT_TOKEN, ADMIN_ID, WEB_PORT, DB_PATH
 from admin import router as admin_router
 
 WEBAPP_DIR = Path(__file__).parent / "webapp"
+IMAGES_DIR = WEBAPP_DIR / "images"
 
 # ========== БАЗА ДАННЫХ ==========
 async def init_db():
@@ -51,6 +52,9 @@ async def init_db():
             ('Одноразки', 'Waka 8000 Slim', 'Компактный', 1200, '/static/images/waka.jpg', 'Персик, Дыня');
         """)
         await db.commit()
+    
+    # Создаём папку для фото товаров
+    os.makedirs(IMAGES_DIR, exist_ok=True)
 
 async def get_categories():
     async with aiosqlite.connect(DB_PATH) as db:
@@ -89,7 +93,11 @@ async def handle_index(request):
         return web.Response(text=f.read(), content_type="text/html")
 
 async def handle_static(request):
-    file_path = WEBAPP_DIR / request.match_info["filename"]
+    filename = request.match_info["filename"]
+    # Проверяем сначала в папке images, потом в webapp
+    file_path = IMAGES_DIR / filename
+    if not file_path.exists():
+        file_path = WEBAPP_DIR / filename
     if file_path.exists():
         return web.FileResponse(file_path)
     return web.Response(status=404)
@@ -103,6 +111,7 @@ async def api_products(request):
 def create_web_app():
     app = web.Application()
     app.router.add_get("/", handle_index)
+    app.router.add_get("/static/images/{filename}", handle_static)
     app.router.add_get("/static/{filename}", handle_static)
     app.router.add_get("/api/categories", api_categories)
     app.router.add_get("/api/products/{category}", api_products)
@@ -114,7 +123,6 @@ bot = Bot(token=BOT_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
-# Передаём ADMIN_ID и bot в роутер админки через данные
 admin_router_instance = admin_router
 admin_router_instance.admin_id = ADMIN_ID
 admin_router_instance.bot = bot
@@ -141,7 +149,7 @@ async def cmd_start(message: types.Message):
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="🛍 Открыть приложение", web_app=WebAppInfo(url=webapp_url))],
-            [KeyboardButton(text="📞 Связаться с менеджером", url="https://t.me/your_manager")]
+            [KeyboardButton(text="📞 Связаться с менеджером", url="https://t.me/ghjkIz")]
         ],
         resize_keyboard=True
     )
@@ -152,7 +160,7 @@ async def handle_webapp_data(message: types.Message):
     try:
         data = json.loads(message.web_app_data.data)
         if data.get("type") == "order":
-            order_text = f"🛒 НОВЫЙ ЗАКАЗ\n\n👤 {message.from_user.full_name}\n📱 @{message.from_user.username}\n\n📦 Состав:\n"
+            order_text = f"🛒 НОВЫЙ ЗАКАЗ\n\n👤 {message.from_user.full_name}\n📱 @{message.from_user.username}\n\n Состав:\n"
             total = 0
             for item in data["items"]:
                 item_sum = item["price"] * item["quantity"]
@@ -175,9 +183,9 @@ async def main():
     await runner.setup()
     site = web.TCPSite(runner, "0.0.0.0", WEB_PORT)
     await site.start()
-    print(f" Веб-сервер запущен: http://0.0.0.0:{WEB_PORT}")
+    print(f"🌐 Веб-сервер запущен: http://0.0.0.0:{WEB_PORT}")
     
-    print("🤖 Бот запущен...")
+    print(" Бот запущен...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
