@@ -30,8 +30,8 @@
         }
         
         @keyframes glowText {
-            0%, 100% { text-shadow: 0 0 20px rgba(176, 38, 255, 0.5), 0 0 40px rgba(0, 212, 255, 0.3); }
-            50% { text-shadow: 0 0 30px rgba(176, 38, 255, 0.8), 0 0 60px rgba(0, 212, 255, 0.5); }
+            0%, 100% { text-shadow: 0 0 20px rgba(176, 38, 255, 0.5), 0 0 40px rgba(0, 212, 255, 0.3); filter: drop-shadow(0 0 15px rgba(176, 38, 255, 0.6)); }
+            50% { text-shadow: 0 0 30px rgba(176, 38, 255, 0.8), 0 0 60px rgba(0, 212, 255, 0.5); filter: drop-shadow(0 0 25px rgba(176, 38, 255, 0.9)); }
         }
         
         .header { margin-bottom: 16px; }
@@ -114,44 +114,49 @@
         .banner { 
             border-radius: 24px; 
             margin-bottom: 28px; 
-            background: linear-gradient(135deg, #1a0a2e 0%, #2d1b69 50%, #0a0a0f 100%);
-            height: 220px; 
+            height: 240px; 
             display: flex; 
             align-items: center; 
-            justify-content: center;
+            justify-content: flex-start;
             position: relative;
             overflow: hidden;
             border: 1px solid rgba(176, 38, 255, 0.3);
+            background: #0a0a0f;
+            padding-left: 40px;
         }
         
-        .banner::before {
-            content: '';
+        .banner-bg {
             position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle at 30% 50%, rgba(176, 38, 255, 0.3) 0%, transparent 50%),
-                        radial-gradient(circle at 70% 50%, rgba(255, 45, 149, 0.2) 0%, transparent 50%);
-            animation: rotate 20s linear infinite;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 0;
         }
         
-        @keyframes rotate {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+        .banner-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, rgba(10,10,15,0.92) 0%, rgba(10,10,15,0.75) 35%, rgba(10,10,15,0.4) 70%, rgba(10,10,15,0.2) 100%);
+            z-index: 1;
         }
         
         .banner-title { 
             font-size: 72px; 
             font-weight: 900; 
-            letter-spacing: 8px;
+            letter-spacing: 10px;
             background: linear-gradient(135deg, #b026ff 0%, #00d4ff 50%, #ff2d95 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
             animation: glowText 3s ease-in-out infinite;
             position: relative;
-            z-index: 1;
+            z-index: 2;
+            filter: drop-shadow(0 0 30px rgba(176, 38, 255, 0.7));
         }
         
         .section-title { 
@@ -546,13 +551,17 @@
         <div class="header">
             <div class="search-bar"><span>🔍</span><input type="text" placeholder="Поиск товаров" id="search-input"></div>
             <div class="header-actions">
-                <div class="profile-btn" onclick="showProfile()"><span>👤</span></div>
-                <div class="cart-btn-main" onclick="showCart()"><span></span><span>Корзина</span></div>
+                <div class="profile-btn" onclick="showProfile()"><span></span></div>
+                <div class="cart-btn-main" onclick="showCart()"><span>🛒</span><span>Корзина</span></div>
             </div>
         </div>
+        
         <div class="banner">
+            <img class="banner-bg" src="https://res.cloudinary.com/w1om4lsy/image/upload/f_auto/q_auto/1790876155.png" alt="banner">
+            <div class="banner-overlay"></div>
             <div class="banner-title">PUFFY</div>
         </div>
+        
         <h2 class="section-title">Категории</h2>
         <div class="categories-grid" id="categories-grid"><div class="loading">Загрузка...</div></div>
     </div>
@@ -584,7 +593,7 @@
     </div>
 
     <div id="profile-page" class="page">
-        <div class="top-bar"><button class="back-btn" onclick="goHome()">← Назад</button><h2> Профиль</h2></div>
+        <div class="top-bar"><button class="back-btn" onclick="goHome()">← Назад</button><h2>👤 Профиль</h2></div>
         <div class="profile-content">
             <div class="profile-avatar" id="profile-avatar"></div>
             <div class="profile-name" id="profile-name">Гость</div>
@@ -626,7 +635,7 @@
         loadOrdersFromStorage();
 
         const MANAGER_USERNAME = 'ghjkIz';
-        const categoryEmojis = {'Одноразки': '💨', 'Под-системы': '', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
+        const categoryEmojis = {'Одноразки': '', 'Под-системы': '🔋', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
 
         async function loadCategories() {
             try {
@@ -673,7 +682,7 @@
                 imgHtml = '<img src="' + p.image + '" alt="' + safeName + '" onerror="this.style.display=\'none\'; this.parentElement.querySelector(\'.img-fallback\').style.display=\'flex\';">';
             }
             const fallbackStyle = hasImage ? 'display:none;' : '';
-            const favIcon = isFav ? '❤️' : '';
+            const favIcon = isFav ? '❤️' : '🤍';
             const actionBtn = isFavoritePage 
                 ? '<button class="remove-fav-btn" onclick="removeFromFavorites(' + p.id + ')">Удалить из избранного</button>'
                 : '<button class="add-to-cart-btn" onclick="addToCart(' + p.id + ', \'' + safeName + '\', ' + p.price + ', \'' + (p.image || '').replace(/'/g, "\\'") + '\')">Добавить в корзину</button>';
@@ -767,7 +776,7 @@
         }
 
         function clearCart() {
-            if (cart.length === 0) { showToast('🛒 Корзина уже пуста'); return; }
+            if (cart.length === 0) { showToast(' Корзина уже пуста'); return; }
             if (confirm('Очистить корзину?')) { cart = []; saveCartToStorage(); showCart(); showToast('🗑 Корзина очищена'); }
         }
 
@@ -777,7 +786,7 @@
         }
 
         function checkout() {
-            if (cart.length === 0) { showToast('🛒 Корзина пуста'); return; }
+            if (cart.length === 0) { showToast(' Корзина пуста'); return; }
             const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
             const data = { type: 'order', items: cart, total: total };
             if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
@@ -801,14 +810,14 @@
             showPage('profile-page');
         }
 
-        function openSupport() { if (tg.openTelegramLink) tg.openTelegramLink('https://t.me/' + MANAGER_USERNAME); else showToast(' @' + MANAGER_USERNAME); }
-        function showAbout() { showToast('ℹ️ PUFFY — curated vape & hookah shop'); }
+        function openSupport() { if (tg.openTelegramLink) tg.openTelegramLink('https://t.me/' + MANAGER_USERNAME); else showToast('💬 @' + MANAGER_USERNAME); }
+        function showAbout() { showToast('️ PUFFY — curated vape & hookah shop'); }
 
         function toggleFavorite(id, element, event) {
             event.stopPropagation();
             const idx = favorites.indexOf(id);
             if (idx === -1) { favorites.push(id); element.textContent = '❤️'; showToast('❤️ Добавлено в избранное'); }
-            else { favorites.splice(idx, 1); element.textContent = ''; showToast('Удалено из избранного'); }
+            else { favorites.splice(idx, 1); element.textContent = '🤍'; showToast('Удалено из избранного'); }
             saveFavoritesToStorage();
         }
 
