@@ -7,97 +7,20 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart
 from aiogram.types import WebAppInfo, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
-import aiosqlite
 
-from config import BOT_TOKEN, ADMIN_ID, WEB_PORT, DB_PATH
+from config import BOT_TOKEN, ADMIN_ID, WEB_PORT
 from admin import router as admin_router
+from database import init_db, get_categories, get_products, save_user
 
 WEBAPP_DIR = Path(__file__).parent / "webapp"
-IMAGES_DIR = WEBAPP_DIR / "images"
 
-# ========== БАЗА ДАННЫХ ==========
-async def init_db():
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.executescript("""
-            CREATE TABLE IF NOT EXISTS categories (
-                id INTEGER PRIMARY KEY,
-                name TEXT,
-                image TEXT
-            );
-            CREATE TABLE IF NOT EXISTS products (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                category TEXT,
-                name TEXT,
-                description TEXT,
-                price REAL,
-                image TEXT,
-                flavors TEXT
-            );
-            CREATE TABLE IF NOT EXISTS users (
-                user_id INTEGER PRIMARY KEY,
-                username TEXT,
-                full_name TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-            INSERT OR IGNORE INTO categories (id, name, image) VALUES 
-            (1, 'Одноразки', '/static/images/disposables.jpg'),
-            (2, 'Под-системы', '/static/images/pods.jpg'),
-            (3, 'Жидкость', '/static/images/liquid.jpg'),
-            (4, 'Расходники', '/static/images/consumables.jpg'),
-            (5, 'Жевательный табак', '/static/images/snus.jpg'),
-            (6, 'Кальяны', '/static/images/hookahs.jpg');
-            INSERT OR IGNORE INTO products (category, name, description, price, image, flavors) VALUES
-            ('Одноразки', 'ELFBAR 30.000', 'Регулировка никотина', 1350, '/static/images/elfbar.jpg', 'Манго, Арбуз'),
-            ('Одноразки', 'Gang Arctic 20.000', 'Крепкие', 1600, '/static/images/gang.jpg', 'Лёд, Мята'),
-            ('Одноразки', 'Waka 8000 Slim', 'Компактный', 1200, '/static/images/waka.jpg', 'Персик, Дыня');
-        """)
-        await db.commit()
-    
-    # Создаём папку для фото товаров
-    os.makedirs(IMAGES_DIR, exist_ok=True)
-
-async def get_categories():
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute("SELECT * FROM categories") as cursor:
-            rows = await cursor.fetchall()
-            return [{"id": r[0], "name": r[1], "image": r[2]} for r in rows]
-
-async def get_products(category):
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute("SELECT * FROM products WHERE category=?", (category,)) as cursor:
-            rows = await cursor.fetchall()
-            return [{
-                "id": r[0], "category": r[1], "name": r[2],
-                "description": r[3], "price": r[4], "image": r[5],
-                "flavors": r[6]
-            } for r in rows]
-
-async def save_user(user_id, username, full_name):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "INSERT OR IGNORE INTO users (user_id, username, full_name) VALUES (?, ?, ?)",
-            (user_id, username, full_name)
-        )
-        await db.commit()
-
-async def get_all_users():
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute("SELECT user_id FROM users") as cursor:
-            rows = await cursor.fetchall()
-            return [r[0] for r in rows]
-# =================================
-
-# ========== ВЕБ-СЕРВЕР ==========
 async def handle_index(request):
     with open(WEBAPP_DIR / "index.html", "r", encoding="utf-8") as f:
         return web.Response(text=f.read(), content_type="text/html")
 
 async def handle_static(request):
     filename = request.match_info["filename"]
-    # Проверяем сначала в папке images, потом в webapp
-    file_path = IMAGES_DIR / filename
-    if not file_path.exists():
-        file_path = WEBAPP_DIR / filename
+    file_path = WEBAPP_DIR / filename
     if file_path.exists():
         return web.FileResponse(file_path)
     return web.Response(status=404)
@@ -111,14 +34,11 @@ async def api_products(request):
 def create_web_app():
     app = web.Application()
     app.router.add_get("/", handle_index)
-    app.router.add_get("/static/images/{filename}", handle_static)
     app.router.add_get("/static/{filename}", handle_static)
     app.router.add_get("/api/categories", api_categories)
     app.router.add_get("/api/products/{category}", api_products)
     return app
-# ================================
 
-# ========== TELEGRAM БОТ ==========
 bot = Bot(token=BOT_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
@@ -171,12 +91,10 @@ async def handle_webapp_data(message: types.Message):
             await bot.send_message(ADMIN_ID, order_text)
     except Exception as e:
         print(f"Ошибка обработки заказа: {e}")
-# ================================
 
-# ========== ЗАПУСК ==========
 async def main():
     await init_db()
-    print("✅ База данных готова")
+    print("✅ База данных PostgreSQL готова")
     
     web_app = create_web_app()
     runner = web.AppRunner(web_app)
