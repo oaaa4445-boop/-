@@ -126,7 +126,7 @@
         .banner { 
             border-radius: 24px; 
             margin-bottom: 28px; 
-            height: 240px; 
+            height: 260px; 
             display: flex; 
             align-items: center; 
             justify-content: flex-start;
@@ -134,7 +134,7 @@
             overflow: hidden;
             border: 1px solid rgba(176, 38, 255, 0.3);
             background: #0a0a0f;
-            padding-left: 40px;
+            padding-left: 50px;
         }
         
         .banner-bg {
@@ -153,14 +153,19 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, rgba(10,10,15,0.92) 0%, rgba(10,10,15,0.75) 35%, rgba(10,10,15,0.4) 70%, rgba(10,10,15,0.2) 100%);
+            background: linear-gradient(90deg, 
+                rgba(10,10,15,0.95) 0%, 
+                rgba(10,10,15,0.85) 25%, 
+                rgba(10,10,15,0.6) 50%, 
+                rgba(10,10,15,0.3) 75%, 
+                rgba(10,10,15,0.15) 100%);
             z-index: 1;
         }
         
         .banner-title { 
-            font-size: 72px; 
+            font-size: 80px; 
             font-weight: 900; 
-            letter-spacing: 10px;
+            letter-spacing: 12px;
             background: linear-gradient(135deg, #b026ff 0%, #00d4ff 50%, #ff2d95 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -168,7 +173,8 @@
             animation: glowText 3s ease-in-out infinite;
             position: relative;
             z-index: 2;
-            -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.25);
+            -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.3);
+            filter: drop-shadow(0 0 20px rgba(176, 38, 255, 0.6));
         }
         
         .section-title { 
@@ -569,13 +575,13 @@
         <div class="header">
             <div class="search-bar"><span>🔍</span><input type="text" placeholder="Поиск товаров" id="search-input"></div>
             <div class="header-actions">
-                <div class="profile-btn" onclick="showProfile()"><span></span></div>
+                <div class="profile-btn" onclick="showProfile()"><span>👤</span></div>
                 <div class="cart-btn-main" onclick="showCart()"><span>🛒</span><span>Корзина</span></div>
             </div>
         </div>
         
         <div class="banner">
-            <img class="banner-bg" src="https://res.cloudinary.com/w1om4lsy/image/upload/f_auto/q_auto/1790876155.png" alt="banner">
+            <img class="banner-bg" src="https://res.cloudinary.com/w1om4lsy/image/upload/f_auto/q_auto/GigaChat-4.jpg" alt="banner">
             <div class="banner-overlay"></div>
             <div class="banner-title">PUFFY</div>
         </div>
@@ -598,12 +604,12 @@
     </div>
 
     <div id="cart-page" class="page">
-        <div class="top-bar"><button class="back-btn" onclick="goHome()">← Назад</button><h2>🛒 Корзина</h2></div>
+        <div class="top-bar"><button class="back-btn" onclick="goHome()">← Назад</button><h2> Корзина</h2></div>
         <div id="cart-items"><div class="empty-cart">Корзина пуста</div></div>
         <div class="cart-footer">
             <div class="cart-total">Итого: <span id="total-price">0</span> ₽</div>
             <button class="checkout-btn" onclick="checkout()">Оформить заказ</button>
-            <button class="clear-cart-btn" onclick="clearCart()">🗑 Очистить корзину</button>
+            <button class="clear-cart-btn" onclick="clearCart()"> Очистить корзину</button>
         </div>
     </div>
 
@@ -627,7 +633,7 @@
                 <div class="menu-item" onclick="showCart()"><span class="menu-icon">🛒</span><span class="menu-text">Корзина</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="showFavorites()"><span class="menu-icon">❤️</span><span class="menu-text">Избранное</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="openSupport()"><span class="menu-icon">💬</span><span class="menu-text">Поддержка</span><span class="menu-arrow">›</span></div>
-                <div class="menu-item" onclick="showAbout()"><span class="menu-icon">ℹ️</span><span class="menu-text">О магазине</span><span class="menu-arrow">›</span></div>
+                <div class="menu-item" onclick="showAbout()"><span class="menu-icon">️</span><span class="menu-text">О магазине</span><span class="menu-arrow">›</span></div>
             </div>
         </div>
     </div>
@@ -655,7 +661,7 @@
         loadOrdersFromStorage();
 
         const MANAGER_USERNAME = 'ghjkIz';
-        const categoryEmojis = {'Одноразки': '💨', 'Под-системы': '🔋', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
+        const categoryEmojis = {'Одноразки': '💨', 'Под-системы': '', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
 
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
@@ -773,7 +779,7 @@
             showPage('favorites-page');
             const grid = document.getElementById('favorites-grid');
             if (favorites.length === 0) {
-                grid.innerHTML = '<div class="empty-favorites">❤️<br><br>Избранное пусто<br><br>Нажмите 🤍 на товаре чтобы добавить</div>';
+                grid.innerHTML = '<div class="empty-favorites">❤️<br><br>Избранное пусто<br><br>Нажмите  на товаре чтобы добавить</div>';
                 return;
             }
             grid.innerHTML = '<div class="loading">Загрузка избранных товаров...</div>';
@@ -828,7 +834,7 @@
         }
 
         function clearCart() {
-            if (cart.length === 0) { showToast(' Корзина уже пуста'); return; }
+            if (cart.length === 0) { showToast('🛒 Корзина уже пуста'); return; }
             if (confirm('Очистить корзину?')) { cart = []; saveCartToStorage(); showCart(); showToast('🗑 Корзина очищена'); }
         }
 
