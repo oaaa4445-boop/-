@@ -1,10 +1,13 @@
 import os
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-ADMIN_ID = int(os.environ.get("ADMIN_ID"))
+ADMIN_ID = int(os.environ.get("ADMIN_ID", "0"))  # ✅ Преобразуем строку в число
+WEB_PORT = int(os.environ.get("WEB_PORT", "8080"))
 
-if not BOT_TOKEN or not ADMIN_ID:
-    raise ValueError("Ошибка: Не указаны BOT_TOKEN или ADMIN_ID в переменных окружения!")
+# Проверка при загрузке
+if not BOT_TOKEN:
+    raise ValueError(" BOT_TOKEN не задан в переменных окружения!")
+if ADMIN_ID == 0:
+    raise ValueError("❌ ADMIN_ID не задан в переменных окружения!")
 
-WEB_PORT = int(os.environ.get("PORT", 8080))
-DB_PATH = "cloudshop.db"
+print(f"✅ Конфиг загружен: ADMIN_ID={ADMIN_ID} (тип: {type(ADMIN_ID).__name__})")
