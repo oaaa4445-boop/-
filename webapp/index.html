@@ -55,88 +55,98 @@
         .add-to-cart-btn:active { transform: scale(0.95); box-shadow: 0 0 30px rgba(176, 38, 255, 0.7); }
         .remove-fav-btn { background: linear-gradient(135deg, #ff2d95, #ff006e); color: #fff; box-shadow: 0 0 20px rgba(255, 45, 149, 0.4); }
         
+        /* СТРАНИЦА ТОВАРА */
         .product-detail-container { padding: 0; }
         .product-detail-image {
             width: 100%;
-            height: 320px;
-            background: linear-gradient(135deg, #1a0a2e, #0a0a0f);
+            height: 350px; /* Увеличил высоту */
+            background: #0a0a0f;
             position: relative;
             overflow: hidden;
             display: flex;
-            align-items: center;
-            justify-content: center;
+            align-items: center; /* Центрирование по вертикали */
+            justify-content: center; /* Центрирование по горизонтали */
             border-radius: 0 0 24px 24px;
             margin: -16px -16px 20px -16px;
         }
-        .product-detail-image img { width: 100%; height: 100%; object-fit: cover; }
+        .product-detail-image img { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: contain; /* ИСПРАВЛЕНО: фото теперь целиком и по центру */
+        }
         .product-detail-image .img-fallback { font-size: 100px; }
-        .product-detail-title { font-size: 26px; font-weight: 800; margin-bottom: 16px; letter-spacing: 0.5px; }
+        .product-detail-title { font-size: 28px; font-weight: 800; margin-bottom: 16px; letter-spacing: 0.5px; }
         .product-detail-price-block {
             background: rgba(255, 255, 255, 0.03);
             backdrop-filter: blur(20px);
             border: 1px solid rgba(176, 38, 255, 0.2);
             border-radius: 20px;
-            padding: 20px;
+            padding: 24px;
             margin-bottom: 16px;
         }
         .product-detail-price {
-            font-size: 36px;
+            font-size: 42px; /* Крупнее цена */
             font-weight: 900;
             background: linear-gradient(135deg, #00d4ff, #b026ff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            margin-bottom: 4px;
         }
         .product-detail-desc {
-            font-size: 14px;
-            color: rgba(255, 255, 255, 0.6);
-            line-height: 1.5;
-            margin-bottom: 16px;
+            font-size: 15px;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.6;
+            margin-bottom: 20px;
         }
         .product-detail-flavors {
             background: rgba(255, 255, 255, 0.03);
             backdrop-filter: blur(20px);
             border: 1px solid rgba(176, 38, 255, 0.2);
             border-radius: 20px;
-            padding: 20px;
-            margin-bottom: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
         }
         .product-detail-flavors-title {
-            font-size: 16px;
+            font-size: 18px;
             font-weight: 700;
-            margin-bottom: 12px;
-            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 16px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         .flavors-list { list-style: none; padding: 0; }
         .flavors-list li {
-            padding: 8px 0;
-            font-size: 15px;
-            color: rgba(255, 255, 255, 0.8);
+            padding: 10px 0;
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.9);
             border-bottom: 1px solid rgba(176, 38, 255, 0.1);
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
         .flavors-list li:last-child { border-bottom: none; }
-        .flavors-list li::before { content: "•"; color: #b026ff; font-size: 20px; font-weight: bold; }
-        .no-flavors { color: rgba(255, 255, 255, 0.4); font-size: 14px; font-style: italic; }
+        .flavors-list li::before { content: "•"; color: #b026ff; font-size: 24px; font-weight: bold; line-height: 0.5; }
+        .no-flavors { color: rgba(255, 255, 255, 0.4); font-size: 15px; font-style: italic; }
+        
         .product-detail-add-btn {
             width: 100%;
             background: linear-gradient(135deg, #b026ff, #ff2d95);
             color: #fff;
             border: none;
-            padding: 18px;
+            padding: 20px; /* Большая кнопка */
             border-radius: 16px;
-            font-size: 16px;
+            font-size: 18px;
             font-weight: 700;
             cursor: pointer;
-            box-shadow: 0 0 25px rgba(176, 38, 255, 0.5);
+            box-shadow: 0 4px 25px rgba(176, 38, 255, 0.4);
             transition: all 0.3s;
             letter-spacing: 0.5px;
             margin-top: 8px;
+            position: sticky;
+            bottom: 20px;
         }
-        .product-detail-add-btn:active { transform: scale(0.97); box-shadow: 0 0 35px rgba(176, 38, 255, 0.8); }
+        .product-detail-add-btn:active { transform: scale(0.98); box-shadow: 0 0 35px rgba(176, 38, 255, 0.8); }
         
         .cart-item { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px); border-radius: 16px; padding: 14px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; border: 1px solid rgba(176, 38, 255, 0.2); }
         .cart-thumb { width: 56px; height: 56px; border-radius: 12px; overflow: hidden; background: rgba(26, 10, 46, 0.8); display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid rgba(176, 38, 255, 0.3); }
@@ -295,7 +305,7 @@
         loadOrdersFromStorage();
 
         const MANAGER_USERNAME = 'ghjkIz';
-        const categoryEmojis = {'Одноразки': '💨', 'Под-системы': '🔋', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
+        const categoryEmojis = {'Одноразки': '💨', 'Под-системы': '', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
 
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('visible'); });
@@ -358,7 +368,7 @@
             let flavorsList = [];
             
             if (flavors && flavors.trim() && flavors.toLowerCase() !== 'нет') {
-                const prefixMatch = flavors.match(/^(Вкусы|Цвета|Размеры|В наличии|Другое)\s*:\s*(.+)$/i);
+                const prefixMatch = flavors.match(/^(Вкусы|Цвета|Характеристики|Размеры|В наличии|Другое)\s*:\s*(.+)$/i);
                 
                 if (prefixMatch) {
                     flavorsType = prefixMatch[1];
@@ -372,6 +382,7 @@
                     let emoji = '📦';
                     if (flavorsType === 'Вкусы') { title = 'Вкусы в наличии:'; emoji = '🍓'; }
                     else if (flavorsType === 'Цвета') { title = 'Цвета в наличии:'; emoji = '🎨'; }
+                    else if (flavorsType === 'Характеристики') { title = 'Характеристики:'; emoji = '⚙️'; }
                     else if (flavorsType === 'Размеры') { title = 'Размеры в наличии:'; emoji = '📏'; }
                     
                     flavorsHtml = '<div class="product-detail-flavors">' +
@@ -473,7 +484,7 @@
             else {
                 container.innerHTML = cart.map(item => {
                     const hasImage = item.image && item.image.length > 5 && item.image.startsWith('http');
-                    let thumbHtml = hasImage ? '<img src="' + item.image + '" alt="' + item.name + '">' : '<span style="font-size:28px;"></span>';
+                    let thumbHtml = hasImage ? '<img src="' + item.image + '" alt="' + item.name + '">' : '<span style="font-size:28px;">📦</span>';
                     return '<div class="cart-item"><div class="cart-thumb">' + thumbHtml + '</div><div class="info"><div class="name">' + item.name + '</div><div style="color:#00d4ff;font-weight:700;">' + item.price + ' ₽</div></div><div class="qty-controls"><button class="qty-btn" onclick="changeQty(' + item.id + ', -1)">−</button><span style="font-weight:700;">' + item.quantity + '</span><button class="qty-btn" onclick="changeQty(' + item.id + ', 1)">+</button></div></div>';
                 }).join('');
             }
@@ -488,7 +499,7 @@
 
         function clearCart() {
             if (cart.length === 0) { showToast('🛒 Корзина уже пуста'); return; }
-            if (confirm('Очистить корзину?')) { cart = []; saveCartToStorage(); showCart(); showToast(' Корзина очищена'); }
+            if (confirm('Очистить корзину?')) { cart = []; saveCartToStorage(); showCart(); showToast('🗑 Корзина очищена'); }
         }
 
         function updateTotal() {
