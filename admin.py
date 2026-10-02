@@ -21,7 +21,7 @@ class AddProduct(StatesGroup):
     description = State()
     price = State()
     image = State()
-    flavors_type = State()  # НОВОЕ: выбор типа вариаций
+    flavors_type = State()
     flavors = State()
 
 # Состояния для добавления категории
@@ -52,8 +52,8 @@ def get_admin_main_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📊 Статистика", callback_data="admin_stats")],
         [InlineKeyboardButton(text="📦 Управление товарами", callback_data="admin_products")],
-        [InlineKeyboardButton(text=" Управление категориями", callback_data="admin_categories")],
-        [InlineKeyboardButton(text="📢 Рассылка", callback_data="admin_broadcast")],
+        [InlineKeyboardButton(text="📂 Управление категориями", callback_data="admin_categories")],
+        [InlineKeyboardButton(text=" Рассылка", callback_data="admin_broadcast")],
         [InlineKeyboardButton(text="🔙 Закрыть панель", callback_data="admin_close")]
     ])
 
@@ -105,13 +105,12 @@ def get_category_select_keyboard(categories):
     buttons.append([InlineKeyboardButton(text="❌ Отмена", callback_data="admin_menu")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-# ✅ НОВАЯ: клавиатура выбора типа вариаций
 def get_flavors_type_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=" Вкусы", callback_data="flav_type_Вкусы")],
+        [InlineKeyboardButton(text="🍓 Вкусы", callback_data="flav_type_Вкусы")],
         [InlineKeyboardButton(text="🎨 Цвета", callback_data="flav_type_Цвета")],
-        [InlineKeyboardButton(text=" Размеры", callback_data="flav_type_Размеры")],
-        [InlineKeyboardButton(text="📦 Другое", callback_data="flav_type_В наличии")],
+        [InlineKeyboardButton(text="⚙️ Характеристики", callback_data="flav_type_Характеристики")],
+        [InlineKeyboardButton(text=" Другое", callback_data="flav_type_В наличии")],
         [InlineKeyboardButton(text="⏭ Пропустить", callback_data="flav_type_skip")],
         [InlineKeyboardButton(text="❌ Отмена", callback_data="admin_menu")]
     ])
@@ -135,7 +134,7 @@ async def admin_command(message: types.Message):
         await message.answer("⛔ Доступ запрещен")
         return
     await message.answer(
-        "🛠 **Панель администратора PUFFY**\n\nВыберите действие:",
+        " **Панель администратора PUFFY**\n\nВыберите действие:",
         reply_markup=get_admin_main_keyboard(),
         parse_mode="Markdown"
     )
@@ -147,7 +146,7 @@ async def admin_menu(callback: types.CallbackQuery, state: FSMContext):
         return
     await state.clear()
     await callback.message.edit_text(
-        "🛠 **Панель администратора PUFFY**\n\nВыберите действие:",
+        " **Панель администратора PUFFY**\n\nВыберите действие:",
         reply_markup=get_admin_main_keyboard(),
         parse_mode="Markdown"
     )
@@ -162,8 +161,8 @@ async def admin_stats(callback: types.CallbackQuery):
         users = await get_user_count()
         products = await get_product_count()
         text = (
-            "📊 **Статистика магазина**\n\n"
-            f" Всего пользователей: `{users}`\n"
+            " **Статистика магазина**\n\n"
+            f"👥 Всего пользователей: `{users}`\n"
             f"📦 Всего товаров в каталоге: `{products}`\n\n"
             "Данные актуальны на текущий момент."
         )
@@ -183,11 +182,11 @@ async def admin_products(callback: types.CallbackQuery):
         categories = await get_categories()
         if not categories:
             await callback.message.edit_text(
-                "📂 Категории не найдены. Сначала создайте категорию.",
+                " Категории не найдены. Сначала создайте категорию.",
                 reply_markup=get_admin_back_keyboard()
             )
         else:
-            text = "📦 **Управление товарами**\n\nВыберите категорию для просмотра или добавьте новый товар:"
+            text = " **Управление товарами**\n\nВыберите категорию для просмотра или добавьте новый товар:"
             await callback.message.edit_text(
                 text,
                 reply_markup=get_products_keyboard(categories),
@@ -200,7 +199,7 @@ async def admin_products(callback: types.CallbackQuery):
 @router.callback_query(F.data.startswith("admin_view_cat_"))
 async def admin_view_category(callback: types.CallbackQuery):
     if not is_admin(callback.from_user.id):
-        await callback.answer(" Доступ запрещен", show_alert=True)
+        await callback.answer("⛔ Доступ запрещен", show_alert=True)
         return
     try:
         cat_id = int(callback.data.split("_")[-1])
@@ -213,7 +212,7 @@ async def admin_view_category(callback: types.CallbackQuery):
         if not products:
             text = f"📂 **{category['name']}**\n\nТоваров в категории пока нет."
         else:
-            text = f"📂 **{category['name']}**\n\nНайдено товаров: {len(products)}\n\nНажмите на товар, чтобы удалить его:"
+            text = f" **{category['name']}**\n\nНайдено товаров: {len(products)}\n\nНажмите на товар, чтобы удалить его:"
         
         await callback.message.edit_text(
             text,
@@ -250,7 +249,7 @@ async def admin_add_product_start(callback: types.CallbackQuery, state: FSMConte
     categories = await get_categories()
     if not categories:
         await callback.message.edit_text(
-            " Сначала создайте хотя бы одну категорию!",
+            "❌ Сначала создайте хотя бы одну категорию!",
             reply_markup=get_admin_back_keyboard()
         )
         await callback.answer()
@@ -291,7 +290,7 @@ async def process_name(message: types.Message, state: FSMContext):
     await state.update_data(name=message.text.strip())
     await state.set_state(AddProduct.description)
     await message.answer(
-        " Шаг 3/7: Введите **описание товара**\n\n(или напишите 'нет', чтобы пропустить)",
+        "📝 Шаг 3/7: Введите **описание товара**\n\n(или напишите 'нет', чтобы пропустить)",
         reply_markup=get_cancel_keyboard(),
         parse_mode="Markdown"
     )
@@ -301,7 +300,6 @@ async def process_description(message: types.Message, state: FSMContext):
     if not is_admin(message.from_user.id):
         return
     text = message.text.strip()
-    # ✅ Пропуск описания
     if text.lower() in ("нет", "no", "-", "пропустить"):
         await state.update_data(description="")
     else:
@@ -327,7 +325,7 @@ async def process_price(message: types.Message, state: FSMContext):
             parse_mode="Markdown"
         )
     except ValueError:
-        await message.answer(" Неверный формат цены. Введите число, например 1500")
+        await message.answer("❌ Неверный формат цены. Введите число, например 1500")
 
 @router.message(AddProduct.image, F.photo)
 async def process_image_photo(message: types.Message, state: FSMContext):
@@ -354,11 +352,10 @@ async def process_image_text(message: types.Message, state: FSMContext):
         await state.update_data(image=message.text.strip())
     await state.set_state(AddProduct.flavors_type)
     await message.answer(
-        " Шаг 6/7: Что будете указывать для этого товара?",
+        "🏷 Шаг 6/7: Что будете указывать для этого товара?",
         reply_markup=get_flavors_type_keyboard()
     )
 
-# ✅ НОВОЕ: обработка выбора типа вариаций
 @router.callback_query(AddProduct.flavors_type, F.data.startswith("flav_type_"))
 async def process_flavors_type(callback: types.CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
@@ -368,9 +365,7 @@ async def process_flavors_type(callback: types.CallbackQuery, state: FSMContext)
     flavor_type = callback.data.replace("flav_type_", "")
     
     if flavor_type == "skip":
-        # Пропускаем вариации
         await state.update_data(flavors_type="", flavors="")
-        # Сразу создаём товар
         await _finalize_product(callback.message, state)
         await callback.answer()
         return
@@ -378,12 +373,24 @@ async def process_flavors_type(callback: types.CallbackQuery, state: FSMContext)
     await state.update_data(flavors_type=flavor_type)
     await state.set_state(AddProduct.flavors)
     
-    # Определяем текст подсказки в зависимости от типа
-    type_emoji = {"Вкусы": "🍓", "Цвета": "🎨", "Размеры": "📏", "В наличии": "📦"}.get(flavor_type, "📦")
+    type_emoji = {
+        "Вкусы": "🍓",
+        "Цвета": "🎨",
+        "Характеристики": "⚙️",
+        "В наличии": "📦"
+    }.get(flavor_type, "📦")
+    
+    examples = {
+        "Вкусы": "Лимон, Манго, Арбуз",
+        "Цвета": "Dune Orange, Black Silver, White Gold",
+        "Характеристики": "50ml, Никотин 3mg, VG/PG 70/30",
+        "В наличии": "В наличии, Под заказ, Предзаказ"
+    }
+    example = examples.get(flavor_type, "Вариант 1, Вариант 2")
     
     await callback.message.edit_text(
-        f"✅ Тип: **{flavor_type}**\n\n Шаг 7/7: Введите {flavor_type.lower()} (через запятую):\n\n"
-        f"Пример: {type_emoji} Лимон, Манго, Арбуз",
+        f"✅ Тип: **{flavor_type}**\n\n📝 Шаг 7/7: Введите {flavor_type.lower()} (через запятую):\n\n"
+        f"Пример: {type_emoji} {example}",
         reply_markup=get_cancel_keyboard(),
         parse_mode="Markdown"
     )
@@ -400,12 +407,10 @@ async def process_flavors(message: types.Message, state: FSMContext):
     await _finalize_product(message, state)
 
 async def _finalize_product(message, state: FSMContext):
-    """Финальная функция создания товара"""
     data = await state.get_data()
     flavors_type = data.get('flavors_type', '')
     flavors = data.get('flavors', '')
     
-    # Формируем строку для хранения: "Вкусы: Манго, Арбуз" или просто список
     if flavors_type and flavors:
         flavors_stored = f"{flavors_type}: {flavors}"
     elif flavors:
@@ -423,7 +428,6 @@ async def _finalize_product(message, state: FSMContext):
             flavors=flavors_stored
         )
         
-        # Формируем красивый отчёт
         report = (
             f"✅ **Товар добавлен!**\n\n"
             f"📂 Категория: {data['category']}\n"
@@ -433,12 +437,14 @@ async def _finalize_product(message, state: FSMContext):
         )
         
         if data.get('description'):
-            report += f"📋 Описание: {data['description'][:50]}{'...' if len(data['description']) > 50 else ''}\n"
+            desc = data['description']
+            report += f"📋 Описание: {desc[:50]}{'...' if len(desc) > 50 else ''}\n"
         else:
             report += "📋 Описание: пропущено\n"
         
         if flavors_type and flavors:
-            report += f"{({'Вкусы': '🍓', 'Цвета': '', 'Размеры': '📏'}.get(flavors_type, '📦'))} {flavors_type}: {flavors}\n"
+            emoji = {"Вкусы": "", "Цвета": "🎨", "Характеристики": "⚙️", "В наличии": "📦"}.get(flavors_type, "📦")
+            report += f"{emoji} {flavors_type}: {flavors}\n"
         else:
             report += "🏷 Вариации: пропущены\n"
         
@@ -619,7 +625,7 @@ async def process_broadcast_photo(message: types.Message, state: FSMContext):
     await message.answer(
         f"📋 **Предпросмотр рассылки:**\n\n"
         f"📎 Фото: да\n"
-        f" Текст: {preview_text[:100]}{'...' if len(preview_text) > 100 else ''}\n\n"
+        f"📝 Текст: {preview_text[:100]}{'...' if len(preview_text) > 100 else ''}\n\n"
         f"Отправить всем пользователям?",
         reply_markup=get_broadcast_confirm_keyboard(),
         parse_mode="Markdown"
@@ -639,8 +645,8 @@ async def process_broadcast_text(message: types.Message, state: FSMContext):
     
     await message.answer(
         f"📋 **Предпросмотр рассылки:**\n\n"
-        f"📎 Фото: нет\n"
-        f"📝 Текст: {text[:100]}{'...' if len(text) > 100 else ''}\n\n"
+        f" Фото: нет\n"
+        f" Текст: {text[:100]}{'...' if len(text) > 100 else ''}\n\n"
         f"Отправить всем пользователям?",
         reply_markup=get_broadcast_confirm_keyboard(),
         parse_mode="Markdown"
@@ -649,7 +655,7 @@ async def process_broadcast_text(message: types.Message, state: FSMContext):
 @router.callback_query(Broadcast.confirm, F.data == "broadcast_confirm_yes")
 async def process_broadcast_confirm(callback: types.CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Доступ запрещен", show_alert=True)
+        await callback.answer(" Доступ запрещен", show_alert=True)
         return
     
     data = await state.get_data()
@@ -718,8 +724,12 @@ async def process_broadcast_confirm(callback: types.CallbackQuery, state: FSMCon
 @router.callback_query(F.data == "admin_close")
 async def admin_close(callback: types.CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Доступ запрещен", show_alert=True)
+        await callback.answer(" Доступ запрещен", show_alert=True)
         return
     await state.clear()
     await callback.message.edit_text("✅ Панель администратора закрыта.")
     await callback.answer()
+
+@router.callback_query(F.data == "admin_broadcast_placeholder")
+async def admin_placeholder(callback: types.CallbackQuery):
+    await callback.answer("⚙️ Этот раздел в разработке", show_alert=True)
