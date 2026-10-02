@@ -59,20 +59,26 @@
         .product-detail-container { padding: 0; }
         .product-detail-image {
             width: 100%;
-            height: 350px; /* Увеличил высоту */
-            background: #0a0a0f;
+            height: 320px;
+            background: linear-gradient(180deg, #1a0a2e 0%, #0a0a0f 100%);
             position: relative;
             overflow: hidden;
             display: flex;
-            align-items: center; /* Центрирование по вертикали */
-            justify-content: center; /* Центрирование по горизонтали */
-            border-radius: 0 0 24px 24px;
-            margin: -16px -16px 20px -16px;
+            align-items: center;
+            justify-content: center;
+            border-radius: 20px;
+            margin: 0 0 20px 0;
+            padding: 20px;
+            border: 1px solid rgba(176, 38, 255, 0.2);
         }
         .product-detail-image img { 
-            width: 100%; 
-            height: 100%; 
-            object-fit: contain; /* ИСПРАВЛЕНО: фото теперь целиком и по центру */
+            max-width: 100%; 
+            max-height: 100%; 
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            border-radius: 16px;
+            filter: drop-shadow(0 10px 30px rgba(176, 38, 255, 0.3));
         }
         .product-detail-image .img-fallback { font-size: 100px; }
         .product-detail-title { font-size: 28px; font-weight: 800; margin-bottom: 16px; letter-spacing: 0.5px; }
@@ -85,7 +91,7 @@
             margin-bottom: 16px;
         }
         .product-detail-price {
-            font-size: 42px; /* Крупнее цена */
+            font-size: 42px;
             font-weight: 900;
             background: linear-gradient(135deg, #00d4ff, #b026ff);
             -webkit-background-clip: text;
@@ -134,7 +140,7 @@
             background: linear-gradient(135deg, #b026ff, #ff2d95);
             color: #fff;
             border: none;
-            padding: 20px; /* Большая кнопка */
+            padding: 20px;
             border-radius: 16px;
             font-size: 18px;
             font-weight: 700;
@@ -143,8 +149,6 @@
             transition: all 0.3s;
             letter-spacing: 0.5px;
             margin-top: 8px;
-            position: sticky;
-            bottom: 20px;
         }
         .product-detail-add-btn:active { transform: scale(0.98); box-shadow: 0 0 35px rgba(176, 38, 255, 0.8); }
         
@@ -224,7 +228,7 @@
     </div>
 
     <div id="search-page" class="page">
-        <div class="top-bar"><button class="back-btn" onclick="clearSearch()">← Назад</button><h2> Поиск</h2></div>
+        <div class="top-bar"><button class="back-btn" onclick="clearSearch()">← Назад</button><h2>🔍 Поиск</h2></div>
         <div class="search-results-title" id="search-results-title"></div>
         <div class="products-grid" id="search-results-grid"><div class="loading">Поиск...</div></div>
     </div>
@@ -258,7 +262,7 @@
             <div class="profile-menu">
                 <div class="menu-item" onclick="showCart()"><span class="menu-icon">🛒</span><span class="menu-text">Корзина</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="showFavorites()"><span class="menu-icon">❤️</span><span class="menu-text">Избранное</span><span class="menu-arrow">›</span></div>
-                <div class="menu-item" onclick="openSupport()"><span class="menu-icon">💬</span><span class="menu-text">Поддержка</span><span class="menu-arrow">›</span></div>
+                <div class="menu-item" onclick="openSupport()"><span class="menu-icon"></span><span class="menu-text">Поддержка</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="showAbout()"><span class="menu-icon">ℹ️</span><span class="menu-text">О магазине</span><span class="menu-arrow">›</span></div>
             </div>
         </div>
@@ -305,7 +309,7 @@
         loadOrdersFromStorage();
 
         const MANAGER_USERNAME = 'ghjkIz';
-        const categoryEmojis = {'Одноразки': '💨', 'Под-системы': '', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
+        const categoryEmojis = {'Одноразки': '', 'Под-системы': '🔋', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
 
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('visible'); });
@@ -394,13 +398,13 @@
                     flavorsHtml = '<div class="product-detail-flavors"><div class="product-detail-flavors-title">📦 В наличии</div><div class="no-flavors">Не указано</div></div>';
                 }
             } else {
-                flavorsHtml = '<div class="product-detail-flavors"><div class="product-detail-flavors-title"> В наличии</div><div class="no-flavors">Не указано</div></div>';
+                flavorsHtml = '<div class="product-detail-flavors"><div class="product-detail-flavors-title">📦 В наличии</div><div class="no-flavors">Не указано</div></div>';
             }
             
             const hasImage = image && image.length > 5 && image.startsWith('http');
             const imageHtml = hasImage 
                 ? '<img src="' + image + '" alt="' + name + '">'
-                : '<div class="img-fallback"></div>';
+                : '<div class="img-fallback">📦</div>';
             
             const safeName = name.replace(/'/g, "\\'");
             const safeImage = (image || '').replace(/'/g, "\\'");
@@ -540,14 +544,14 @@
             showPage('profile-page');
         }
 
-        function openSupport() { if (tg.openTelegramLink) tg.openTelegramLink('https://t.me/' + MANAGER_USERNAME); else showToast('💬 @' + MANAGER_USERNAME); }
+        function openSupport() { if (tg.openTelegramLink) tg.openTelegramLink('https://t.me/' + MANAGER_USERNAME); else showToast(' @' + MANAGER_USERNAME); }
         function showAbout() { showToast('ℹ️ PUFFY — curated vape & hookah shop'); }
 
         function toggleFavorite(id, element, event) {
             event.stopPropagation();
             const idx = favorites.indexOf(id);
             if (idx === -1) { favorites.push(id); element.textContent = '❤️'; showToast('❤️ Добавлено в избранное'); }
-            else { favorites.splice(idx, 1); element.textContent = '🤍'; showToast('Удалено из избранного'); }
+            else { favorites.splice(idx, 1); element.textContent = ''; showToast('Удалено из избранного'); }
             saveFavoritesToStorage();
         }
 
