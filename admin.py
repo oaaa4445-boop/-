@@ -5,7 +5,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from database import (
     get_user_count, get_product_count, get_categories, get_category_by_id,
-    get_products, add_product, delete_product, add_category, delete_category
+    get_products, add_product, delete_product, add_category, delete_category,
+    get_all_users, get_category_by_name
 )
 
 router = Router()
@@ -27,6 +28,12 @@ class AddCategory(StatesGroup):
     name = State()
     image = State()
 
+# Состояния для рассылки
+class Broadcast(StatesGroup):
+    text = State()
+    photo = State()
+    confirm = State()
+
 def setup_admin(admin_id, bot_instance):
     global _admin_id, _bot
     _admin_id = int(admin_id) if admin_id else None
@@ -44,8 +51,8 @@ def get_admin_main_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📊 Статистика", callback_data="admin_stats")],
         [InlineKeyboardButton(text="📦 Управление товарами", callback_data="admin_products")],
-        [InlineKeyboardButton(text="📂 Управление категориями", callback_data="admin_categories")],
-        [InlineKeyboardButton(text="📢 Рассылка", callback_data="admin_broadcast_placeholder")],
+        [InlineKeyboardButton(text=" Управление категориями", callback_data="admin_categories")],
+        [InlineKeyboardButton(text="📢 Рассылка", callback_data="admin_broadcast")],
         [InlineKeyboardButton(text="🔙 Закрыть панель", callback_data="admin_close")]
     ])
 
@@ -58,7 +65,7 @@ def get_products_keyboard(categories):
     buttons = []
     for cat in categories:
         buttons.append([InlineKeyboardButton(
-            text=f" {cat['name']}",
+            text=f"📂 {cat['name']}",
             callback_data=f"admin_view_cat_{cat['id']}"
         )])
     buttons.append([InlineKeyboardButton(text="➕ Добавить товар", callback_data="admin_add_product")])
@@ -71,17 +78,17 @@ def get_products_list_keyboard(products, category_name):
         name_short = p['name'][:25] + "..." if len(p['name']) > 25 else p['name']
         buttons.append([InlineKeyboardButton(
             text=f"🗑 {name_short} — {int(p['price'])}₽",
-            callback_data=f"admin_del_prod_{p['id']}"  # ✅ Изменён префикс
+            callback_data=f"admin_del_prod_{p['id']}"
         )])
-    buttons.append([InlineKeyboardButton(text=f" К категориям", callback_data="admin_products")])
+    buttons.append([InlineKeyboardButton(text=f"🔙 К категориям", callback_data="admin_products")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def get_categories_manage_keyboard(categories):
     buttons = []
     for cat in categories:
         buttons.append([InlineKeyboardButton(
-            text=f" {cat['name']}",
-            callback_data=f"admin_remove_cat_{cat['id']}"  # ✅ Изменён префикс
+            text=f"🗑 {cat['name']}",
+            callback_data=f"admin_remove_cat_{cat['id']}"
         )])
     buttons.append([InlineKeyboardButton(text="➕ Добавить категорию", callback_data="admin_add_category")])
     buttons.append([InlineKeyboardButton(text="🔙 Назад", callback_data="admin_menu")])
@@ -102,6 +109,12 @@ def get_cancel_keyboard():
         [InlineKeyboardButton(text="❌ Отмена", callback_data="admin_menu")]
     ])
 
+def get_broadcast_confirm_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Да, отправить", callback_data="broadcast_confirm_yes")],
+        [InlineKeyboardButton(text="❌ Нет, отмена", callback_data="admin_menu")]
+    ])
+
 # ========== ОБРАБОТЧИКИ ГЛАВНОГО МЕНЮ ==========
 
 @router.message(Command("admin"))
@@ -110,7 +123,7 @@ async def admin_command(message: types.Message):
         await message.answer("⛔ Доступ запрещен")
         return
     await message.answer(
-        " **Панель администратора PUFFY**\n\nВыберите действие:",
+        "🛠 **Панель администратора PUFFY**\n\nВыберите действие:",
         reply_markup=get_admin_main_keyboard(),
         parse_mode="Markdown"
     )
@@ -122,7 +135,7 @@ async def admin_menu(callback: types.CallbackQuery, state: FSMContext):
         return
     await state.clear()
     await callback.message.edit_text(
-        " **Панель администратора PUFFY**\n\nВыберите действие:",
+        "🛠 **Панель администратора PUFFY**\n\nВыберите действие:",
         reply_markup=get_admin_main_keyboard(),
         parse_mode="Markdown"
     )
@@ -199,7 +212,7 @@ async def admin_view_category(callback: types.CallbackQuery):
         await callback.answer(f"Ошибка: {e}", show_alert=True)
     await callback.answer()
 
-@router.callback_query(F.data.startswith("admin_del_prod_"))  # ✅ Изменён префикс
+@router.callback_query(F.data.startswith("admin_del_prod_"))
 async def admin_delete_product(callback: types.CallbackQuery):
     if not is_admin(callback.from_user.id):
         await callback.answer(" Доступ запрещен", show_alert=True)
@@ -325,7 +338,7 @@ async def process_image_text(message: types.Message, state: FSMContext):
         await state.update_data(image=message.text.strip())
     await state.set_state(AddProduct.flavors)
     await message.answer(
-        "🎨 Шаг 6/6: Введите **вкусы/варианты** (через запятую) или напишите 'нет':",
+        " Шаг 6/6: Введите **вкусы/варианты** (через запятую) или напишите 'нет':",
         reply_markup=get_cancel_keyboard(),
         parse_mode="Markdown"
     )
@@ -350,9 +363,9 @@ async def process_flavors(message: types.Message, state: FSMContext):
         await message.answer(
             f"✅ **Товар добавлен!**\n\n"
             f"📂 Категория: {data['category']}\n"
-            f" Название: {data['name']}\n"
+            f"📝 Название: {data['name']}\n"
             f"💰 Цена: {int(data['price'])}₽\n"
-            f" ID товара: {product_id}",
+            f"🆔 ID товара: {product_id}",
             reply_markup=get_admin_main_keyboard(),
             parse_mode="Markdown"
         )
@@ -370,7 +383,7 @@ async def admin_categories(callback: types.CallbackQuery):
     try:
         categories = await get_categories()
         if not categories:
-            text = "📂 **Управление категориями**\n\nКатегорий пока нет. Создайте первую!"
+            text = " **Управление категориями**\n\nКатегорий пока нет. Создайте первую!"
         else:
             text = "📂 **Управление категориями**\n\nНажмите на категорию, чтобы удалить её (если в ней нет товаров):"
         
@@ -383,7 +396,7 @@ async def admin_categories(callback: types.CallbackQuery):
         await callback.answer(f"Ошибка: {e}", show_alert=True)
     await callback.answer()
 
-@router.callback_query(F.data.startswith("admin_remove_cat_"))  # ✅ Изменён префикс
+@router.callback_query(F.data.startswith("admin_remove_cat_"))
 async def admin_delete_category(callback: types.CallbackQuery):
     if not is_admin(callback.from_user.id):
         await callback.answer("⛔ Доступ запрещен", show_alert=True)
@@ -435,8 +448,6 @@ async def process_category_name(message: types.Message, state: FSMContext):
         return
     name = message.text.strip()
     
-    # Проверяем, нет ли уже такой категории
-    from database import get_category_by_name
     existing = await get_category_by_name(name)
     if existing:
         await message.answer(f"❌ Категория '{name}' уже существует!")
@@ -496,17 +507,157 @@ async def process_category_image_text(message: types.Message, state: FSMContext)
         await message.answer(f"❌ Ошибка: {e}")
     await state.clear()
 
-# ========== ЗАКРЫТИЕ И ЗАГЛУШКИ ==========
+# ========== РАССЫЛКА ==========
+
+@router.callback_query(F.data == "admin_broadcast")
+async def admin_broadcast_start(callback: types.CallbackQuery, state: FSMContext):
+    if not is_admin(callback.from_user.id):
+        await callback.answer(" Доступ запрещен", show_alert=True)
+        return
+    await state.set_state(Broadcast.text)
+    await callback.message.edit_text(
+        " **Рассылка сообщений**\n\n"
+        "Шаг 1/3: Введите текст сообщения.\n\n"
+        "Поддерживается Markdown форматирование:\n"
+        "• *курсив* • **жирный** • __подчёркнутый__\n"
+        "• `моноширинный` • [ссылка](url)\n\n"
+        "Или отправьте фото с подписью.",
+        reply_markup=get_cancel_keyboard(),
+        parse_mode="Markdown"
+    )
+    await callback.answer()
+
+@router.message(Broadcast.text, F.photo)
+async def process_broadcast_photo(message: types.Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        return
+    photo = message.photo[-1]
+    caption = message.caption or ""
+    
+    await state.update_data(
+        photo_id=photo.file_id,
+        text=caption
+    )
+    await state.set_state(Broadcast.confirm)
+    
+    preview_text = caption if caption else "(без текста)"
+    await message.answer(
+        f"📋 **Предпросмотр рассылки:**\n\n"
+        f"📎 Фото: да\n"
+        f"📝 Текст: {preview_text[:100]}{'...' if len(preview_text) > 100 else ''}\n\n"
+        f"Отправить всем пользователям?",
+        reply_markup=get_broadcast_confirm_keyboard(),
+        parse_mode="Markdown"
+    )
+
+@router.message(Broadcast.text)
+async def process_broadcast_text(message: types.Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        return
+    text = message.text.strip()
+    if len(text) < 3:
+        await message.answer(" Текст слишком короткий. Минимум 3 символа.")
+        return
+    
+    await state.update_data(text=text)
+    await state.set_state(Broadcast.confirm)
+    
+    await message.answer(
+        f" **Предпросмотр рассылки:**\n\n"
+        f"📎 Фото: нет\n"
+        f" Текст: {text[:100]}{'...' if len(text) > 100 else ''}\n\n"
+        f"Отправить всем пользователям?",
+        reply_markup=get_broadcast_confirm_keyboard(),
+        parse_mode="Markdown"
+    )
+
+@router.callback_query(Broadcast.confirm, F.data == "broadcast_confirm_yes")
+async def process_broadcast_confirm(callback: types.CallbackQuery, state: FSMContext):
+    if not is_admin(callback.from_user.id):
+        await callback.answer("⛔ Доступ запрещен", show_alert=True)
+        return
+    
+    data = await state.get_data()
+    text = data.get('text', '')
+    photo_id = data.get('photo_id')
+    
+    await callback.message.edit_text(" Начинаю рассылку...")
+    await callback.answer()
+    
+    # Получаем всех пользователей
+    users = await get_all_users()
+    total = len(users)
+    
+    if total == 0:
+        await callback.message.edit_text(
+            "❌ Нет пользователей для рассылки.",
+            reply_markup=get_admin_back_keyboard()
+        )
+        await state.clear()
+        return
+    
+    success_count = 0
+    error_count = 0
+    errors = []
+    
+    # Отправляем сообщение каждому пользователю
+    for i, user_id in enumerate(users):
+        try:
+            if photo_id:
+                await _bot.send_photo(
+                    user_id,
+                    photo_id,
+                    caption=text,
+                    parse_mode="Markdown"
+                )
+            else:
+                await _bot.send_message(
+                    user_id,
+                    text,
+                    parse_mode="Markdown"
+                )
+            success_count += 1
+        except Exception as e:
+            error_count += 1
+            errors.append(f"User {user_id}: {str(e)[:50]}")
+        
+        # Обновляем прогресс каждые 10 пользователей
+        if (i + 1) % 10 == 0 or (i + 1) == total:
+            try:
+                await callback.message.edit_text(
+                    f"📤 Рассылка: {i + 1}/{total}\n"
+                    f"✅ Успешно: {success_count}\n"
+                    f"❌ Ошибок: {error_count}"
+                )
+            except:
+                pass
+    
+    # Финальный отчёт
+    report = (
+        f"✅ **Рассылка завершена!**\n\n"
+        f"👥 Всего пользователей: {total}\n"
+        f"✅ Успешно отправлено: {success_count}\n"
+        f"❌ Ошибок: {error_count}\n"
+    )
+    
+    if errors and len(errors) <= 5:
+        report += f"\n**Последние ошибки:**\n" + "\n".join(errors[:5])
+    
+    await callback.message.edit_text(
+        report,
+        reply_markup=get_admin_main_keyboard(),
+        parse_mode="Markdown"
+    )
+    
+    await state.clear()
+
+# ========== ЗАКРЫТИЕ ==========
 
 @router.callback_query(F.data == "admin_close")
 async def admin_close(callback: types.CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
-        await callback.answer(" Доступ запрещен", show_alert=True)
+        await callback.answer("⛔ Доступ запрещен", show_alert=True)
         return
     await state.clear()
     await callback.message.edit_text("✅ Панель администратора закрыта.")
     await callback.answer()
-
-@router.callback_query(F.data == "admin_broadcast_placeholder")
-async def admin_placeholder(callback: types.CallbackQuery):
-    await callback.answer("⚙️ Этот раздел в разработке", show_alert=True)
