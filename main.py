@@ -70,12 +70,14 @@ admin_router_instance.bot = bot
 
 dp.include_router(admin_router_instance)
 
-START_TEXT = """⚠️ Внимание! Контент 18+
+# ✅ НОВОЕ ПРИВЕТСТВИЕ — ВАРИАНТ 5
+START_TEXT = """🛍 PUFFY 
 
-PUFFY — каталог продукции для совершеннолетних.
-Быстрая доставка по Екб.
+✅ Только оригинальная продукция
+✅ Цены ниже, чем в офлайн-магазинах
+✅ Скидки постоянным клиентам
 
-Открывая приложение, вы подтверждаете, что вам есть 18 лет """
+⚠️ 18+"""
 
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
@@ -88,7 +90,7 @@ async def cmd_start(message: types.Message):
         await save_user(message.from_user.id, username, full_name)
         print(f"✅ Пользователь {message.from_user.id} сохранён в БД")
     except Exception as e:
-        print(f"⚠️ Ошибка сохранения пользователя: {e}")
+        print(f"️ Ошибка сохранения пользователя: {e}")
         traceback.print_exc()
     
     try:
@@ -127,10 +129,10 @@ async def handle_webapp_data(message: types.Message):
             
             # Формируем красивое сообщение для админа
             order_text = (
-                f"🛒 <b>НОВЫЙ ЗАКАЗ</b>\n\n"
+                f" <b>НОВЫЙ ЗАКАЗ</b>\n\n"
                 f" <b>{user.full_name}</b>\n"
                 f"🆔 ID: <code>{user_id}</code>\n"
-                f"📱 TG: {username_text}\n"
+                f" TG: {username_text}\n"
                 f"🔗 <a href='{profile_link}'>Написать пользователю</a>\n\n"
                 f"📦 <b>Состав:</b>\n"
             )
@@ -141,7 +143,7 @@ async def handle_webapp_data(message: types.Message):
                 total += item_sum
                 order_text += f"• {item['name']} x{item['quantity']} = {item_sum}₽\n"
             
-            order_text += f"\n💰 <b>Итого: {total}₽</b>"
+            order_text += f"\n <b>Итого: {total}₽</b>"
             
             # Отвечаем пользователю
             await message.answer("✅ Заказ принят! Менеджер свяжется с вами в ближайшее время.")
