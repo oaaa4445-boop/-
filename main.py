@@ -10,7 +10,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 import traceback
 
 from config import BOT_TOKEN, ADMIN_ID, WEB_PORT
-from admin import router as admin_router
+from admin import router as admin_router, setup_admin
 from database import init_db, get_categories, get_products, get_products_by_ids, search_products, save_user
 
 WEBAPP_DIR = Path(__file__).parent / "webapp"
@@ -64,24 +64,22 @@ bot = Bot(token=BOT_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
-admin_router_instance = admin_router
-admin_router_instance.admin_id = ADMIN_ID
-admin_router_instance.bot = bot
+# ✅ ПРАВИЛЬНАЯ установка админа через функцию-сеттер
+setup_admin(ADMIN_ID, bot)
 
-dp.include_router(admin_router_instance)
+dp.include_router(admin_router)
 
-# ✅ НОВОЕ ПРИВЕТСТВИЕ — ВАРИАНТ 5
-START_TEXT = """🛍 PUFFY 
+START_TEXT = """🛍 PUFFY — твой вейп-шоп в Екб
 
 ✅ Только оригинальная продукция
 ✅ Цены ниже, чем в офлайн-магазинах
+✅ Доставка за 60 минут по городу
 ✅ Скидки постоянным клиентам
 
 ⚠️ 18+"""
 
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
-    """Обработчик /start с защитой от ошибок"""
     print(f"📩 Получен /start от пользователя {message.from_user.id}")
     
     try:
@@ -90,8 +88,7 @@ async def cmd_start(message: types.Message):
         await save_user(message.from_user.id, username, full_name)
         print(f"✅ Пользователь {message.from_user.id} сохранён в БД")
     except Exception as e:
-        print(f"️ Ошибка сохранения пользователя: {e}")
-        traceback.print_exc()
+        print(f"⚠️ Ошибка сохранения пользователя: {e}")
     
     try:
         webapp_url = os.environ.get("RENDER_EXTERNAL_URL", f"http://localhost:{WEB_PORT}")
@@ -106,33 +103,26 @@ async def cmd_start(message: types.Message):
         print(f"✅ Приветствие отправлено пользователю {message.from_user.id}")
     except Exception as e:
         print(f"❌ Ошибка отправки приветствия: {e}")
-        traceback.print_exc()
         try:
             await message.answer(START_TEXT)
-        except Exception as e2:
-            print(f"❌❌ Критическая ошибка: {e2}")
+        except:
+            pass
 
 @dp.message(F.web_app_data)
 async def handle_webapp_data(message: types.Message):
-    """Обработка заказа из Web App с умной связью с пользователем"""
     try:
         data = json.loads(message.web_app_data.data)
         if data.get("type") == "order":
             user = message.from_user
-            
-            # Проверяем наличие юзернейма
             username_text = f"@{user.username}" if user.username else "Нет юзернейма"
             user_id = user.id
-            
-            # Магическая ссылка для открытия чата с пользователем по ID
             profile_link = f"tg://user?id={user_id}"
             
-            # Формируем красивое сообщение для админа
             order_text = (
-                f" <b>НОВЫЙ ЗАКАЗ</b>\n\n"
-                f" <b>{user.full_name}</b>\n"
+                f"🛒 <b>НОВЫЙ ЗАКАЗ</b>\n\n"
+                f"👤 <b>{user.full_name}</b>\n"
                 f"🆔 ID: <code>{user_id}</code>\n"
-                f" TG: {username_text}\n"
+                f"📱 TG: {username_text}\n"
                 f"🔗 <a href='{profile_link}'>Написать пользователю</a>\n\n"
                 f"📦 <b>Состав:</b>\n"
             )
@@ -143,12 +133,9 @@ async def handle_webapp_data(message: types.Message):
                 total += item_sum
                 order_text += f"• {item['name']} x{item['quantity']} = {item_sum}₽\n"
             
-            order_text += f"\n <b>Итого: {total}₽</b>"
+            order_text += f"\n💰 <b>Итого: {total}₽</b>"
             
-            # Отвечаем пользователю
             await message.answer("✅ Заказ принят! Менеджер свяжется с вами в ближайшее время.")
-            
-            # Отправляем админу с HTML-разметкой для работы ссылки
             await bot.send_message(ADMIN_ID, order_text, parse_mode="HTML")
             print(f"✅ Заказ на {total}₽ от пользователя {user_id} отправлен админу")
             
@@ -167,7 +154,7 @@ async def main():
     await site.start()
     print(f"🌐 Веб-сервер запущен: http://0.0.0.0:{WEB_PORT}")
     
-    print("🤖 Бот запущен...")
+    print(f"🤖 Бот запущен... Admin ID: {ADMIN_ID}")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
