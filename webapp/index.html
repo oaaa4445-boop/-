@@ -24,15 +24,6 @@
             to { opacity: 1; transform: translateY(0); } 
         }
         
-        @keyframes neonSign {
-            0%, 100% { 
-                filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.6));
-            }
-            50% { 
-                filter: drop-shadow(0 0 12px rgba(139, 92, 246, 0.8));
-            }
-        }
-        
         .fade-in {
             opacity: 0;
             transform: translateY(30px);
@@ -124,14 +115,11 @@
         .banner { 
             border-radius: 24px; 
             margin-bottom: 28px; 
-            height: 200px; 
+            height: 220px; 
             position: relative;
             overflow: hidden;
             border: 1px solid rgba(176, 38, 255, 0.3);
             background: #0a0a0f;
-            padding-left: 40px;
-            display: flex;
-            align-items: center;
         }
         
         .banner-bg {
@@ -150,29 +138,11 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, 
-                rgba(5,5,10,0.95) 0%, 
-                rgba(5,5,10,0.80) 30%, 
-                rgba(5,5,10,0.50) 55%, 
-                rgba(5,5,10,0.20) 75%, 
-                rgba(5,5,10,0.05) 100%);
+            background: linear-gradient(180deg, 
+                rgba(5,5,10,0.15) 0%, 
+                rgba(5,5,10,0.05) 50%, 
+                rgba(5,5,10,0.25) 100%);
             z-index: 1;
-        }
-        
-        .banner-title { 
-            position: relative;
-            z-index: 2;
-            font-size: clamp(48px, 16vw, 72px);
-            font-weight: 900; 
-            letter-spacing: 8px;
-            color: #ffffff;
-            animation: neonSign 2.5s ease-in-out infinite;
-            -webkit-text-stroke: 2px rgba(139, 92, 246, 0.9);
-            white-space: nowrap;
-            font-style: italic;
-            text-shadow: 
-                0 0 8px rgba(139, 92, 246, 0.6),
-                0 0 16px rgba(6, 182, 212, 0.4);
         }
         
         .section-title { 
@@ -573,15 +543,14 @@
         <div class="header">
             <div class="search-bar"><span>🔍</span><input type="text" placeholder="Поиск товаров" id="search-input"></div>
             <div class="header-actions">
-                <div class="profile-btn" onclick="showProfile()"><span>👤</span></div>
-                <div class="cart-btn-main" onclick="showCart()"><span></span><span>Корзина</span></div>
+                <div class="profile-btn" onclick="showProfile()"><span></span></div>
+                <div class="cart-btn-main" onclick="showCart()"><span>🛒</span><span>Корзина</span></div>
             </div>
         </div>
         
         <div class="banner">
-            <img class="banner-bg" src="https://res.cloudinary.com/w1om4lsy/image/upload/f_auto/q_auto/GigaChat-5.jpg" alt="banner">
+            <img class="banner-bg" src="https://res.cloudinary.com/w1om4lsy/image/upload/f_auto/q_auto/GigaChat-4.jpg" alt="banner">
             <div class="banner-overlay"></div>
-            <div class="banner-title">PUFFY</div>
         </div>
         
         <h2 class="section-title">Категории</h2>
@@ -596,7 +565,7 @@
     </div>
 
     <div id="search-page" class="page">
-        <div class="top-bar"><button class="back-btn" onclick="clearSearch()">← Назад</button><h2>🔍 Поиск</h2></div>
+        <div class="top-bar"><button class="back-btn" onclick="clearSearch()">← Назад</button><h2> Поиск</h2></div>
         <div class="search-results-title" id="search-results-title"></div>
         <div class="products-grid" id="search-results-grid"><div class="loading">Поиск...</div></div>
     </div>
@@ -630,7 +599,7 @@
             <div class="profile-menu">
                 <div class="menu-item" onclick="showCart()"><span class="menu-icon">🛒</span><span class="menu-text">Корзина</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="showFavorites()"><span class="menu-icon">❤️</span><span class="menu-text">Избранное</span><span class="menu-arrow">›</span></div>
-                <div class="menu-item" onclick="openSupport()"><span class="menu-icon"></span><span class="menu-text">Поддержка</span><span class="menu-arrow">›</span></div>
+                <div class="menu-item" onclick="openSupport()"><span class="menu-icon">💬</span><span class="menu-text">Поддержка</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="showAbout()"><span class="menu-icon">ℹ️</span><span class="menu-text">О магазине</span><span class="menu-arrow">›</span></div>
             </div>
         </div>
@@ -659,7 +628,7 @@
         loadOrdersFromStorage();
 
         const MANAGER_USERNAME = 'ghjkIz';
-        const categoryEmojis = {'Одноразки': '💨', 'Под-системы': '', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
+        const categoryEmojis = {'Одноразки': '', 'Под-системы': '🔋', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
 
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
@@ -751,7 +720,7 @@
                 const response = await fetch('/api/search?q=' + encodeURIComponent(query));
                 const products = await response.json();
                 if (products.length === 0) {
-                    grid.innerHTML = '<div class="empty-search">🔍<br><br>Ничего не найдено<br><br>Попробуйте другой запрос</div>';
+                    grid.innerHTML = '<div class="empty-search"><br><br>Ничего не найдено<br><br>Попробуйте другой запрос</div>';
                     return;
                 }
                 title.innerHTML = 'Найдено: <span>' + products.length + '</span> товаров по запросу "' + query + '"';
@@ -814,7 +783,7 @@
 
         function showCart() {
             const container = document.getElementById('cart-items');
-            if (cart.length === 0) { container.innerHTML = '<div class="empty-cart">🛒<br><br>Корзина пуста<br><br>Добавьте товары из каталога</div>'; }
+            if (cart.length === 0) { container.innerHTML = '<div class="empty-cart"><br><br>Корзина пуста<br><br>Добавьте товары из каталога</div>'; }
             else {
                 container.innerHTML = cart.map(item => {
                     const hasImage = item.image && item.image.length > 5 && item.image.startsWith('http');
@@ -866,14 +835,14 @@
             showPage('profile-page');
         }
 
-        function openSupport() { if (tg.openTelegramLink) tg.openTelegramLink('https://t.me/' + MANAGER_USERNAME); else showToast(' @' + MANAGER_USERNAME); }
+        function openSupport() { if (tg.openTelegramLink) tg.openTelegramLink('https://t.me/' + MANAGER_USERNAME); else showToast('💬 @' + MANAGER_USERNAME); }
         function showAbout() { showToast('ℹ️ PUFFY — curated vape & hookah shop'); }
 
         function toggleFavorite(id, element, event) {
             event.stopPropagation();
             const idx = favorites.indexOf(id);
             if (idx === -1) { favorites.push(id); element.textContent = '❤️'; showToast('❤️ Добавлено в избранное'); }
-            else { favorites.splice(idx, 1); element.textContent = ''; showToast('Удалено из избранного'); }
+            else { favorites.splice(idx, 1); element.textContent = '🤍'; showToast('Удалено из избранного'); }
             saveFavoritesToStorage();
         }
 
