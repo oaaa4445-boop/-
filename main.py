@@ -76,7 +76,7 @@ START_TEXT = """🛍 PUFFY — твой вейп-шоп в Екб
 ✅ Доставка за 60 минут по городу
 ✅ Скидки постоянным клиентам
 
-⚠️ 18+"""
+️ 18+"""
 
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
@@ -88,13 +88,13 @@ async def cmd_start(message: types.Message):
         await save_user(message.from_user.id, username, full_name)
         print(f"✅ Пользователь {message.from_user.id} сохранён в БД")
     except Exception as e:
-        print(f"⚠️ Ошибка сохранения пользователя: {e}")
+        print(f"️ Ошибка сохранения пользователя: {e}")
     
     try:
         webapp_url = os.environ.get("RENDER_EXTERNAL_URL", f"http://localhost:{WEB_PORT}")
         keyboard = ReplyKeyboardMarkup(
             keyboard=[
-                [KeyboardButton(text="🛍 Открыть каталог", web_app=WebAppInfo(url=webapp_url))],
+                [KeyboardButton(text=" Открыть каталог", web_app=WebAppInfo(url=webapp_url))],
                 [KeyboardButton(text="📞 Связаться с менеджером", url="https://t.me/ghjkIz")]
             ],
             resize_keyboard=True
@@ -102,7 +102,7 @@ async def cmd_start(message: types.Message):
         await message.answer(START_TEXT, reply_markup=keyboard)
         print(f"✅ Приветствие отправлено пользователю {message.from_user.id}")
     except Exception as e:
-        print(f"❌ Ошибка отправки приветствия: {e}")
+        print(f" Ошибка отправки приветствия: {e}")
         try:
             await message.answer(START_TEXT)
         except:
@@ -119,10 +119,10 @@ async def handle_webapp_data(message: types.Message):
             profile_link = f"tg://user?id={user_id}"
             
             order_text = (
-                f"🛒 <b>НОВЫЙ ЗАКАЗ</b>\n\n"
+                f" <b>НОВЫЙ ЗАКАЗ</b>\n\n"
                 f"👤 <b>{user.full_name}</b>\n"
                 f"🆔 ID: <code>{user_id}</code>\n"
-                f"📱 TG: {username_text}\n"
+                f" TG: {username_text}\n"
                 f"🔗 <a href='{profile_link}'>Написать пользователю</a>\n\n"
                 f"📦 <b>Состав:</b>\n"
             )
@@ -154,11 +154,11 @@ async def main():
     await site.start()
     print(f"🌐 Веб-сервер запущен: http://0.0.0.0:{WEB_PORT}")
     
-    print(f"🤖 Бот запущен... Admin ID: {ADMIN_ID}")
+    print(f"🤖 Бот запущен... Admin ID: {ADMIN_ID} (тип: {type(ADMIN_ID).__name__})")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\n👋 Бот остановлен")
+        print("\n Бот остановлен")
