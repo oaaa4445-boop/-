@@ -5,15 +5,22 @@ from database import get_user_count, get_product_count
 
 router = Router()
 
-# Эти переменные будут заполнены из main.py
-admin_id = None
-bot = None
+# Глобальные переменные
+_admin_id = None
+_bot = None
+
+def setup_admin(admin_id: int, bot_instance):
+    """Устанавливает ID админа и экземпляр бота"""
+    global _admin_id, _bot
+    _admin_id = admin_id
+    _bot = bot_instance
+    print(f"✅ Админ ID установлен: {_admin_id}")
 
 def get_admin_main_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📊 Статистика", callback_data="admin_stats")],
-        [InlineKeyboardButton(text="📦 Управление товарами", callback_data="admin_products_placeholder")],
-        [InlineKeyboardButton(text="📢 Рассылка", callback_data="admin_broadcast_placeholder")],
+        [InlineKeyboardButton(text=" Управление товарами", callback_data="admin_products_placeholder")],
+        [InlineKeyboardButton(text=" Рассылка", callback_data="admin_broadcast_placeholder")],
         [InlineKeyboardButton(text="🔙 Закрыть панель", callback_data="admin_close")]
     ])
 
@@ -22,11 +29,17 @@ def get_admin_back_keyboard():
         [InlineKeyboardButton(text="🔙 Назад в меню", callback_data="admin_menu")]
     ])
 
-# ✅ ОБРАБОТЧИК КОМАНДЫ /admin
+def is_admin(user_id: int) -> bool:
+    """Проверка, является ли пользователь админом"""
+    return _admin_id is not None and user_id == _admin_id
+
 @router.message(Command("admin"))
 async def admin_command(message: types.Message):
-    if message.from_user.id != admin_id:
-        await message.answer(" Доступ запрещен")
+    user_id = message.from_user.id
+    print(f"🔍 Попытка доступа к /admin от пользователя {user_id} (админ ID: {_admin_id})")
+    
+    if not is_admin(user_id):
+        await message.answer("⛔ Доступ запрещен")
         return
     
     await message.answer(
@@ -37,7 +50,7 @@ async def admin_command(message: types.Message):
 
 @router.callback_query(F.data == "admin_menu")
 async def admin_menu(callback: types.CallbackQuery):
-    if callback.from_user.id != admin_id:
+    if not is_admin(callback.from_user.id):
         await callback.answer("⛔ Доступ запрещен", show_alert=True)
         return
     
@@ -50,8 +63,8 @@ async def admin_menu(callback: types.CallbackQuery):
 
 @router.callback_query(F.data == "admin_stats")
 async def admin_stats(callback: types.CallbackQuery):
-    if callback.from_user.id != admin_id:
-        await callback.answer(" Доступ запрещен", show_alert=True)
+    if not is_admin(callback.from_user.id):
+        await callback.answer("⛔ Доступ запрещен", show_alert=True)
         return
     
     try:
@@ -59,7 +72,7 @@ async def admin_stats(callback: types.CallbackQuery):
         products = await get_product_count()
         
         text = (
-            "📊 **Статистика магазина**\n\n"
+            " **Статистика магазина**\n\n"
             f"👥 Всего пользователей: `{users}`\n"
             f"📦 Всего товаров в каталоге: `{products}`\n\n"
             "Данные актуальны на текущий момент."
@@ -71,7 +84,7 @@ async def admin_stats(callback: types.CallbackQuery):
 
 @router.callback_query(F.data == "admin_close")
 async def admin_close(callback: types.CallbackQuery):
-    if callback.from_user.id != admin_id:
+    if not is_admin(callback.from_user.id):
         await callback.answer("⛔ Доступ запрещен", show_alert=True)
         return
     
