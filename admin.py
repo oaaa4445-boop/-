@@ -1,5 +1,6 @@
 from aiogram import Router, types, F
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.filters import Command
 from database import get_user_count, get_product_count
 
 router = Router()
@@ -21,6 +22,19 @@ def get_admin_back_keyboard():
         [InlineKeyboardButton(text="🔙 Назад в меню", callback_data="admin_menu")]
     ])
 
+# ✅ ОБРАБОТЧИК КОМАНДЫ /admin
+@router.message(Command("admin"))
+async def admin_command(message: types.Message):
+    if message.from_user.id != admin_id:
+        await message.answer(" Доступ запрещен")
+        return
+    
+    await message.answer(
+        "🛠 **Панель администратора PUFFY**\n\nВыберите действие:",
+        reply_markup=get_admin_main_keyboard(),
+        parse_mode="Markdown"
+    )
+
 @router.callback_query(F.data == "admin_menu")
 async def admin_menu(callback: types.CallbackQuery):
     if callback.from_user.id != admin_id:
@@ -37,7 +51,7 @@ async def admin_menu(callback: types.CallbackQuery):
 @router.callback_query(F.data == "admin_stats")
 async def admin_stats(callback: types.CallbackQuery):
     if callback.from_user.id != admin_id:
-        await callback.answer("⛔ Доступ запрещен", show_alert=True)
+        await callback.answer(" Доступ запрещен", show_alert=True)
         return
     
     try:
@@ -64,7 +78,6 @@ async def admin_close(callback: types.CallbackQuery):
     await callback.message.edit_text("✅ Панель администратора закрыта.")
     await callback.answer()
 
-# Заглушки для будущих функций, чтобы кнопки не выдавали ошибку
 @router.callback_query(F.data.in_(["admin_products_placeholder", "admin_broadcast_placeholder"]))
 async def admin_placeholder(callback: types.CallbackQuery):
     await callback.answer("⚙️ Этот раздел в разработке", show_alert=True)
