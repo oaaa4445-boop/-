@@ -70,20 +70,20 @@ admin_router_instance.bot = bot
 
 dp.include_router(admin_router_instance)
 
-START_TEXT = """PUFFY.
+# ⚠️ БЕЗОПАСНОЕ ПРИВЕТСТВИЕ С ПРЕДУПРЕЖДЕНИЕМ 18+
+START_TEXT = """⚠️ Внимание! Контент 18+
 
-Коллекция топовых девайсов и вкусов.
+PUFFY — каталог продукции для совершеннолетних.
 Быстрая доставка по Екб.
-Без компромиссов.
 
-Открывай приложение 👇"""
+Открывая приложение, вы подтверждаете, что вам есть 18 лет 👇"""
 
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
-    """Обработчик /start с полной защитой от ошибок"""
+    """Обработчик /start с защитой от ошибок"""
     print(f"📩 Получен /start от пользователя {message.from_user.id}")
     
-    # 1. Пытаемся сохранить пользователя (но не блокируем работу если ошибка)
+    # 1. Сохраняем пользователя (не блокируем работу при ошибке)
     try:
         username = message.from_user.username or ""
         full_name = message.from_user.full_name or ""
@@ -92,25 +92,24 @@ async def cmd_start(message: types.Message):
     except Exception as e:
         print(f"⚠️ Ошибка сохранения пользователя: {e}")
         traceback.print_exc()
-        # Продолжаем работу даже если не удалось сохранить
     
     # 2. Формируем клавиатуру
     try:
         webapp_url = os.environ.get("RENDER_EXTERNAL_URL", f"http://localhost:{WEB_PORT}")
         keyboard = ReplyKeyboardMarkup(
             keyboard=[
-                [KeyboardButton(text="🛍 Открыть приложение", web_app=WebAppInfo(url=webapp_url))],
-                [KeyboardButton(text=" Связаться с менеджером", url="https://t.me/ghjkIz")]
+                [KeyboardButton(text=" Открыть каталог", web_app=WebAppInfo(url=webapp_url))],
+                [KeyboardButton(text="📞 Связаться с менеджером", url="https://t.me/ghjkIz")]
             ],
             resize_keyboard=True
         )
         
-        # 3. Отправляем приветствие
+        # 3. Отправляем приветствие с предупреждением
         await message.answer(START_TEXT, reply_markup=keyboard)
         print(f"✅ Приветствие отправлено пользователю {message.from_user.id}")
         
     except Exception as e:
-        print(f" Ошибка отправки приветствия: {e}")
+        print(f"❌ Ошибка отправки приветствия: {e}")
         traceback.print_exc()
         # Пробуем отправить хотя бы текст без клавиатуры
         try:
@@ -123,7 +122,7 @@ async def handle_webapp_data(message: types.Message):
     try:
         data = json.loads(message.web_app_data.data)
         if data.get("type") == "order":
-            order_text = f"🛒 НОВЫЙ ЗАКАЗ\n\n👤 {message.from_user.full_name}\n @{message.from_user.username}\n\n Состав:\n"
+            order_text = f"🛒 НОВЫЙ ЗАКАЗ\n\n👤 {message.from_user.full_name}\n📱 @{message.from_user.username}\n\n📦 Состав:\n"
             total = 0
             for item in data["items"]:
                 item_sum = item["price"] * item["quantity"]
@@ -145,7 +144,7 @@ async def main():
     await runner.setup()
     site = web.TCPSite(runner, "0.0.0.0", WEB_PORT)
     await site.start()
-    print(f" Веб-сервер запущен: http://0.0.0.0:{WEB_PORT}")
+    print(f"🌐 Веб-сервер запущен: http://0.0.0.0:{WEB_PORT}")
     
     print("🤖 Бот запущен...")
     await dp.start_polling(bot)
