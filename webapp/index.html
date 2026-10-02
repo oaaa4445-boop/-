@@ -55,7 +55,6 @@
         .add-to-cart-btn:active { transform: scale(0.95); box-shadow: 0 0 30px rgba(176, 38, 255, 0.7); }
         .remove-fav-btn { background: linear-gradient(135deg, #ff2d95, #ff006e); color: #fff; box-shadow: 0 0 20px rgba(255, 45, 149, 0.4); }
         
-        /* ========== СТРАНИЦА ТОВАРА ========== */
         .product-detail-container { padding: 0; }
         .product-detail-image {
             width: 100%;
@@ -69,20 +68,9 @@
             border-radius: 0 0 24px 24px;
             margin: -16px -16px 20px -16px;
         }
-        .product-detail-image img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .product-detail-image .img-fallback {
-            font-size: 100px;
-        }
-        .product-detail-title {
-            font-size: 26px;
-            font-weight: 800;
-            margin-bottom: 16px;
-            letter-spacing: 0.5px;
-        }
+        .product-detail-image img { width: 100%; height: 100%; object-fit: cover; }
+        .product-detail-image .img-fallback { font-size: 100px; }
+        .product-detail-title { font-size: 26px; font-weight: 800; margin-bottom: 16px; letter-spacing: 0.5px; }
         .product-detail-price-block {
             background: rgba(255, 255, 255, 0.03);
             backdrop-filter: blur(20px);
@@ -120,10 +108,7 @@
             margin-bottom: 12px;
             color: rgba(255, 255, 255, 0.9);
         }
-        .flavors-list {
-            list-style: none;
-            padding: 0;
-        }
+        .flavors-list { list-style: none; padding: 0; }
         .flavors-list li {
             padding: 8px 0;
             font-size: 15px;
@@ -134,17 +119,8 @@
             gap: 10px;
         }
         .flavors-list li:last-child { border-bottom: none; }
-        .flavors-list li::before {
-            content: "•";
-            color: #b026ff;
-            font-size: 20px;
-            font-weight: bold;
-        }
-        .no-flavors {
-            color: rgba(255, 255, 255, 0.4);
-            font-size: 14px;
-            font-style: italic;
-        }
+        .flavors-list li::before { content: "•"; color: #b026ff; font-size: 20px; font-weight: bold; }
+        .no-flavors { color: rgba(255, 255, 255, 0.4); font-size: 14px; font-style: italic; }
         .product-detail-add-btn {
             width: 100%;
             background: linear-gradient(135deg, #b026ff, #ff2d95);
@@ -160,10 +136,7 @@
             letter-spacing: 0.5px;
             margin-top: 8px;
         }
-        .product-detail-add-btn:active {
-            transform: scale(0.97);
-            box-shadow: 0 0 35px rgba(176, 38, 255, 0.8);
-        }
+        .product-detail-add-btn:active { transform: scale(0.97); box-shadow: 0 0 35px rgba(176, 38, 255, 0.8); }
         
         .cart-item { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px); border-radius: 16px; padding: 14px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; border: 1px solid rgba(176, 38, 255, 0.2); }
         .cart-thumb { width: 56px; height: 56px; border-radius: 12px; overflow: hidden; background: rgba(26, 10, 46, 0.8); display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid rgba(176, 38, 255, 0.3); }
@@ -233,7 +206,6 @@
         <div class="products-grid" id="products-grid"><div class="loading">Загрузка товаров...</div></div>
     </div>
 
-    <!-- ========== НОВАЯ СТРАНИЦА ТОВАРА ========== -->
     <div id="product-page" class="page">
         <div class="top-bar"><button class="back-btn" onclick="goBackFromProduct()">← Назад</button><h2 id="product-page-title">Товар</h2></div>
         <div class="product-detail-container" id="product-detail-container">
@@ -242,7 +214,7 @@
     </div>
 
     <div id="search-page" class="page">
-        <div class="top-bar"><button class="back-btn" onclick="clearSearch()">← Назад</button><h2>🔍 Поиск</h2></div>
+        <div class="top-bar"><button class="back-btn" onclick="clearSearch()">← Назад</button><h2> Поиск</h2></div>
         <div class="search-results-title" id="search-results-title"></div>
         <div class="products-grid" id="search-results-grid"><div class="loading">Поиск...</div></div>
     </div>
@@ -309,7 +281,7 @@
         let favorites = [];
         let orders = [];
         let searchTimeout = null;
-        let previousPage = 'home-page'; // Запоминаем откуда пришли
+        let previousPage = 'home-page';
 
         function loadCartFromStorage() { try { const s = localStorage.getItem('cloudshop_cart'); if (s) cart = JSON.parse(s); } catch(e){} }
         function saveCartToStorage() { try { localStorage.setItem('cloudshop_cart', JSON.stringify(cart)); } catch(e){} }
@@ -323,7 +295,7 @@
         loadOrdersFromStorage();
 
         const MANAGER_USERNAME = 'ghjkIz';
-        const categoryEmojis = {'Одноразки': '💨', 'Под-системы': '', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
+        const categoryEmojis = {'Одноразки': '💨', 'Под-системы': '🔋', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
 
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('visible'); });
@@ -372,41 +344,59 @@
             const actionBtn = isFavoritePage 
                 ? '<button class="remove-fav-btn" onclick="removeFromFavorites(' + p.id + ')">Удалить из избранного</button>'
                 : '<button class="add-to-cart-btn" onclick="addToCart(' + p.id + ', \'' + safeName + '\', ' + p.price + ', \'' + (p.image || '').replace(/'/g, "\\'") + '\')">Добавить в корзину</button>';
-            // Карточка кликабельна — открывает страницу товара
             return '<div class="product-card fade-in" style="transition-delay: ' + (index * 0.1) + 's" onclick="openProduct(' + p.id + ', \'' + safeName + '\', ' + p.price + ', \'' + (p.image || '').replace(/'/g, "\\'") + '\', \'' + (p.description || '').replace(/'/g, "\\'") + '\', \'' + (p.flavors || '').replace(/'/g, "\\'") + '\')"><div class="img-container">' + imgHtml + '<div class="img-fallback" style="' + fallbackStyle + '"></div><span class="favorite" onclick="toggleFavorite(' + p.id + ', this, event)">' + favIcon + '</span></div><div class="info"><div class="name">' + p.name + '</div><div class="desc">' + p.description + '</div><div class="price">' + p.price + ' ₽</div>' + actionBtn + '</div></div>';
         }
 
-        // ========== НОВАЯ ФУНКЦИЯ: ОТКРЫТИЕ СТРАНИЦЫ ТОВАРА ==========
         function openProduct(id, name, price, image, description, flavors) {
             previousPage = document.querySelector('.page.active').id;
             document.getElementById('product-page-title').textContent = name;
             
             const container = document.getElementById('product-detail-container');
             
-            // Парсим вкусы/цвета (разделены запятыми или переносами строк)
             let flavorsHtml = '';
+            let flavorsType = '';
+            let flavorsList = [];
+            
             if (flavors && flavors.trim() && flavors.toLowerCase() !== 'нет') {
-                const flavorsList = flavors.split(',').map(f => f.trim()).filter(f => f.length > 0);
+                const prefixMatch = flavors.match(/^(Вкусы|Цвета|Размеры|В наличии|Другое)\s*:\s*(.+)$/i);
+                
+                if (prefixMatch) {
+                    flavorsType = prefixMatch[1];
+                    flavorsList = prefixMatch[2].split(',').map(f => f.trim()).filter(f => f.length > 0);
+                } else {
+                    flavorsList = flavors.split(',').map(f => f.trim()).filter(f => f.length > 0);
+                }
+                
                 if (flavorsList.length > 0) {
+                    let title = 'В наличии:';
+                    let emoji = '📦';
+                    if (flavorsType === 'Вкусы') { title = 'Вкусы в наличии:'; emoji = '🍓'; }
+                    else if (flavorsType === 'Цвета') { title = 'Цвета в наличии:'; emoji = '🎨'; }
+                    else if (flavorsType === 'Размеры') { title = 'Размеры в наличии:'; emoji = '📏'; }
+                    
                     flavorsHtml = '<div class="product-detail-flavors">' +
-                        '<div class="product-detail-flavors-title">Вкусы / Цвета в наличии:</div>' +
+                        '<div class="product-detail-flavors-title">' + emoji + ' ' + title + '</div>' +
                         '<ul class="flavors-list">' +
                         flavorsList.map(f => '<li>' + f + '</li>').join('') +
                         '</ul></div>';
                 } else {
-                    flavorsHtml = '<div class="product-detail-flavors"><div class="product-detail-flavors-title">Вкусы / Цвета</div><div class="no-flavors">Не указаны</div></div>';
+                    flavorsHtml = '<div class="product-detail-flavors"><div class="product-detail-flavors-title">📦 В наличии</div><div class="no-flavors">Не указано</div></div>';
                 }
             } else {
-                flavorsHtml = '<div class="product-detail-flavors"><div class="product-detail-flavors-title">Вкусы / Цвета</div><div class="no-flavors">Не указаны</div></div>';
+                flavorsHtml = '<div class="product-detail-flavors"><div class="product-detail-flavors-title"> В наличии</div><div class="no-flavors">Не указано</div></div>';
             }
             
             const hasImage = image && image.length > 5 && image.startsWith('http');
             const imageHtml = hasImage 
                 ? '<img src="' + image + '" alt="' + name + '">'
-                : '<div class="img-fallback">📦</div>';
+                : '<div class="img-fallback"></div>';
             
             const safeName = name.replace(/'/g, "\\'");
             const safeImage = (image || '').replace(/'/g, "\\'");
+            
+            const descHtml = description 
+                ? '<div class="product-detail-desc">' + description + '</div>' 
+                : '';
             
             container.innerHTML = 
                 '<div class="product-detail-image">' + imageHtml + '</div>' +
@@ -414,7 +404,7 @@
                 '<div class="product-detail-price-block">' +
                     '<div class="product-detail-price">' + price + ' ₽</div>' +
                 '</div>' +
-                (description ? '<div class="product-detail-desc">' + description + '</div>' : '') +
+                descHtml +
                 flavorsHtml +
                 '<button class="product-detail-add-btn" onclick="addToCart(' + id + ', \'' + safeName + '\', ' + price + ', \'' + safeImage + '\')">🛒 Добавить в корзину</button>';
             
@@ -498,7 +488,7 @@
 
         function clearCart() {
             if (cart.length === 0) { showToast('🛒 Корзина уже пуста'); return; }
-            if (confirm('Очистить корзину?')) { cart = []; saveCartToStorage(); showCart(); showToast('🗑 Корзина очищена'); }
+            if (confirm('Очистить корзину?')) { cart = []; saveCartToStorage(); showCart(); showToast(' Корзина очищена'); }
         }
 
         function updateTotal() {
