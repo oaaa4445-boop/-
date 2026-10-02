@@ -159,7 +159,7 @@
                 <div class="menu-item" onclick="showCart()"><span class="menu-icon">🛒</span><span class="menu-text">Корзина</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="showFavorites()"><span class="menu-icon">❤️</span><span class="menu-text">Избранное</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="openSupport()"><span class="menu-icon">💬</span><span class="menu-text">Поддержка</span><span class="menu-arrow">›</span></div>
-                <div class="menu-item" onclick="showAbout()"><span class="menu-icon">ℹ️</span><span class="menu-text">О магазине</span><span class="menu-arrow">›</span></div>
+                <div class="menu-item" onclick="showAbout()"><span class="menu-icon">️</span><span class="menu-text">О магазине</span><span class="menu-arrow">›</span></div>
             </div>
         </div>
     </div>
@@ -232,7 +232,7 @@
             const hasImage = p.image && p.image.length > 5 && p.image.startsWith('http');
             let imgHtml = hasImage ? '<img src="' + p.image + '" alt="' + safeName + '" onerror="this.style.display=\'none\'; this.parentElement.querySelector(\'.img-fallback\').style.display=\'flex\';">' : '';
             const fallbackStyle = hasImage ? 'display:none;' : '';
-            const favIcon = isFav ? '❤️' : '🤍';
+            const favIcon = isFav ? '❤️' : '';
             const actionBtn = isFavoritePage 
                 ? '<button class="remove-fav-btn" onclick="removeFromFavorites(' + p.id + ')">Удалить из избранного</button>'
                 : '<button class="add-to-cart-btn" onclick="addToCart(' + p.id + ', \'' + safeName + '\', ' + p.price + ', \'' + (p.image || '').replace(/'/g, "\\'") + '\')">Добавить в корзину</button>';
@@ -322,7 +322,15 @@
         function checkout() {
             if (cart.length === 0) { showToast('🛒 Корзина пуста'); return; }
             const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-            const data = { type: 'order', items: cart, total: total };
+            
+            // Передаём user_id для связи с пользователем даже без username
+            const data = { 
+                type: 'order', 
+                items: cart, 
+                total: total, 
+                user_id: tgUser.id 
+            };
+            
             if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
             orders.push({ date: new Date().toISOString(), items: JSON.parse(JSON.stringify(cart)), total: total });
             saveOrdersToStorage();
@@ -332,7 +340,6 @@
         }
 
         function showProfile() {
-            // Улучшенная логика получения данных пользователя
             const user = tg.initDataUnsafe?.user;
             let name = 'Гость';
             let username = '@неизвестно';
