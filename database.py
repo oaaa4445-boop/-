@@ -36,14 +36,12 @@ async def init_db():
             );
         """)
         
-        # Исправляем тип user_id для старых таблиц (INTEGER → BIGINT)
         try:
             await conn.execute("ALTER TABLE users ALTER COLUMN user_id TYPE BIGINT")
             print("✅ Тип user_id изменён на BIGINT")
         except Exception as e:
             print(f"⚠️ Не удалось изменить тип user_id: {e}")
         
-        # Добавляем поле created_at если его нет
         try:
             await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
         except:
@@ -70,13 +68,30 @@ async def init_db():
 async def get_categories():
     conn = await get_db()
     try:
-        rows = await conn.fetch("SELECT * FROM categories")
+        rows = await conn.fetch("SELECT * FROM categories ORDER BY id")
         return [{"id": r['id'], "name": r['name'], "image": r['image']} for r in rows]
     finally:
         await conn.close()
 
-async def get_all_categories():
-    return await get_categories()
+async def get_category_by_id(cat_id):
+    conn = await get_db()
+    try:
+        row = await conn.fetchrow("SELECT * FROM categories WHERE id=$1", cat_id)
+        if row:
+            return {"id": row['id'], "name": row['name'], "image": row['image']}
+        return None
+    finally:
+        await conn.close()
+
+async def get_category_by_name(name):
+    conn = await get_db()
+    try:
+        row = await conn.fetchrow("SELECT * FROM categories WHERE name=$1", name)
+        if row:
+            return {"id": row['id'], "name": row['name'], "image": row['image']}
+        return None
+    finally:
+        await conn.close()
 
 async def add_category(name, image_url):
     conn = await get_db()
@@ -92,11 +107,19 @@ async def add_category(name, image_url):
         await conn.close()
 
 async def delete_category(category_id):
+    """Удаляет категорию. Возвращает (успех, количество товаров в категории)."""
     conn = await get_db()
     try:
-        count = await conn.fetchval("SELECT COUNT(*) FROM products WHERE category = (SELECT name FROM categories WHERE id=$1)", category_id)
+        row = await conn.fetchrow("SELECT name FROM categories WHERE id=$1", category_id)
+        if not row:
+            return False, 0
+        category_name = row['name']
+        
+        # Проверяем, есть ли товары в этой категории
+        count = await conn.fetchval("SELECT COUNT(*) FROM products WHERE category=$1", category_name)
         if count > 0:
-            return False, count
+            return False, count  # Нельзя удалить — есть товары
+        
         await conn.execute("DELETE FROM categories WHERE id=$1", category_id)
         return True, 0
     finally:
@@ -105,7 +128,7 @@ async def delete_category(category_id):
 async def get_products(category):
     conn = await get_db()
     try:
-        rows = await conn.fetch("SELECT * FROM products WHERE category=$1", category)
+        rows = await conn.fetch("SELECT * FROM products WHERE category=$1 ORDER BY id DESC", category)
         return [{
             "id": r['id'], "category": r['category'], "name": r['name'],
             "description": r['description'], "price": r['price'],
@@ -131,7 +154,6 @@ async def get_products_by_ids(ids):
 async def search_products(query):
     if not query or len(query.strip()) < 2:
         return []
-    
     conn = await get_db()
     try:
         search_pattern = f"%{query.lower()}%"
@@ -168,12 +190,10 @@ async def delete_product(product_id):
         await conn.close()
 
 async def save_user(user_id, username, full_name):
-    """Сохраняет пользователя в БД. BIGINT для user_id."""
     conn = await get_db()
     try:
         username = username if username else ""
         full_name = full_name if full_name else ""
-        
         await conn.execute(
             """INSERT INTO users (user_id, username, full_name) 
                VALUES ($1::bigint, $2, $3) 
