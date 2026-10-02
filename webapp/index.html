@@ -59,8 +59,8 @@
         .product-detail-container { padding: 0; }
         .product-detail-image {
             width: 100%;
-            height: 320px;
-            background: linear-gradient(180deg, #1a0a2e 0%, #0a0a0f 100%);
+            height: 340px;
+            background: #0a0a0f;
             position: relative;
             overflow: hidden;
             display: flex;
@@ -68,17 +68,14 @@
             justify-content: center;
             border-radius: 20px;
             margin: 0 0 20px 0;
-            padding: 20px;
             border: 1px solid rgba(176, 38, 255, 0.2);
+            padding: 0;
         }
         .product-detail-image img { 
-            max-width: 100%; 
-            max-height: 100%; 
-            width: auto;
-            height: auto;
-            object-fit: contain;
-            border-radius: 16px;
-            filter: drop-shadow(0 10px 30px rgba(176, 38, 255, 0.3));
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover;
+            border-radius: 20px;
         }
         .product-detail-image .img-fallback { font-size: 100px; }
         .product-detail-title { font-size: 28px; font-weight: 800; margin-bottom: 16px; letter-spacing: 0.5px; }
@@ -201,7 +198,7 @@
 <body>
     <div id="home-page" class="page active">
         <div class="header">
-            <div class="search-bar"><span>🔍</span><input type="text" placeholder="Поиск товаров" id="search-input"></div>
+            <div class="search-bar"><span></span><input type="text" placeholder="Поиск товаров" id="search-input"></div>
             <div class="header-actions">
                 <div class="profile-btn" onclick="showProfile()"><span>👤</span></div>
                 <div class="cart-btn-main" onclick="showCart()"><span>🛒</span><span>Корзина</span></div>
@@ -262,7 +259,7 @@
             <div class="profile-menu">
                 <div class="menu-item" onclick="showCart()"><span class="menu-icon">🛒</span><span class="menu-text">Корзина</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="showFavorites()"><span class="menu-icon">❤️</span><span class="menu-text">Избранное</span><span class="menu-arrow">›</span></div>
-                <div class="menu-item" onclick="openSupport()"><span class="menu-icon"></span><span class="menu-text">Поддержка</span><span class="menu-arrow">›</span></div>
+                <div class="menu-item" onclick="openSupport()"><span class="menu-icon">💬</span><span class="menu-text">Поддержка</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="showAbout()"><span class="menu-icon">ℹ️</span><span class="menu-text">О магазине</span><span class="menu-arrow">›</span></div>
             </div>
         </div>
@@ -309,7 +306,7 @@
         loadOrdersFromStorage();
 
         const MANAGER_USERNAME = 'ghjkIz';
-        const categoryEmojis = {'Одноразки': '', 'Под-системы': '🔋', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
+        const categoryEmojis = {'Одноразки': '💨', 'Под-системы': '🔋', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
 
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('visible'); });
@@ -324,7 +321,7 @@
                 grid.innerHTML = categories.map((cat, index) => {
                     const hasImage = cat.image && cat.image.length > 5 && cat.image.startsWith('http');
                     let imgHtml = hasImage ? '<img class="cat-img" src="' + cat.image + '" alt="' + cat.name + '" onerror="this.style.display=\'none\'; this.parentElement.querySelector(\'.cat-emoji-fallback\').style.display=\'block\';">' : '';
-                    const emoji = categoryEmojis[cat.name] || '📦';
+                    const emoji = categoryEmojis[cat.name] || '';
                     const fallbackStyle = hasImage ? 'display:none;' : 'display:block;';
                     return '<div class="category-card fade-in" onclick="openCategory(\'' + cat.name + '\')" style="transition-delay: ' + (index * 0.1) + 's">' + imgHtml + '<div class="cat-emoji-fallback" style="' + fallbackStyle + '">' + emoji + '</div><div class="cat-overlay"></div><div class="name">' + cat.name + '</div></div>';
                 }).join('');
@@ -398,7 +395,7 @@
                     flavorsHtml = '<div class="product-detail-flavors"><div class="product-detail-flavors-title">📦 В наличии</div><div class="no-flavors">Не указано</div></div>';
                 }
             } else {
-                flavorsHtml = '<div class="product-detail-flavors"><div class="product-detail-flavors-title">📦 В наличии</div><div class="no-flavors">Не указано</div></div>';
+                flavorsHtml = '<div class="product-detail-flavors"><div class="product-detail-flavors-title"> В наличии</div><div class="no-flavors">Не указано</div></div>';
             }
             
             const hasImage = image && image.length > 5 && image.startsWith('http');
@@ -544,14 +541,14 @@
             showPage('profile-page');
         }
 
-        function openSupport() { if (tg.openTelegramLink) tg.openTelegramLink('https://t.me/' + MANAGER_USERNAME); else showToast(' @' + MANAGER_USERNAME); }
+        function openSupport() { if (tg.openTelegramLink) tg.openTelegramLink('https://t.me/' + MANAGER_USERNAME); else showToast('💬 @' + MANAGER_USERNAME); }
         function showAbout() { showToast('ℹ️ PUFFY — curated vape & hookah shop'); }
 
         function toggleFavorite(id, element, event) {
             event.stopPropagation();
             const idx = favorites.indexOf(id);
             if (idx === -1) { favorites.push(id); element.textContent = '❤️'; showToast('❤️ Добавлено в избранное'); }
-            else { favorites.splice(idx, 1); element.textContent = ''; showToast('Удалено из избранного'); }
+            else { favorites.splice(idx, 1); element.textContent = '🤍'; showToast('Удалено из избранного'); }
             saveFavoritesToStorage();
         }
 
