@@ -24,20 +24,25 @@
             to { opacity: 1; transform: translateY(0); } 
         }
         
-        /* Неоновое свечение как у настоящей вывески */
-        @keyframes neonGlow {
+        /* Неоновое свечение как на референсе - белые буквы с градиентным ореолом */
+        @keyframes neonSign {
             0%, 100% { 
-                filter: 
-                    drop-shadow(0 0 8px rgba(139, 92, 246, 0.9))
-                    drop-shadow(0 0 16px rgba(139, 92, 246, 0.7))
-                    drop-shadow(0 0 24px rgba(6, 182, 212, 0.5));
+                text-shadow: 
+                    0 0 10px rgba(139, 92, 246, 0.8),
+                    0 0 20px rgba(139, 92, 246, 0.6),
+                    0 0 30px rgba(6, 182, 212, 0.5),
+                    0 0 40px rgba(6, 182, 212, 0.4),
+                    0 0 50px rgba(236, 72, 153, 0.3);
+                filter: drop-shadow(0 0 15px rgba(139, 92, 246, 0.9));
             }
             50% { 
-                filter: 
-                    drop-shadow(0 0 12px rgba(139, 92, 246, 1))
-                    drop-shadow(0 0 24px rgba(139, 92, 246, 0.9))
-                    drop-shadow(0 0 36px rgba(6, 182, 212, 0.7))
-                    drop-shadow(0 0 48px rgba(236, 72, 153, 0.4));
+                text-shadow: 
+                    0 0 15px rgba(139, 92, 246, 1),
+                    0 0 30px rgba(139, 92, 246, 0.8),
+                    0 0 45px rgba(6, 182, 212, 0.7),
+                    0 0 60px rgba(6, 182, 212, 0.6),
+                    0 0 75px rgba(236, 72, 153, 0.5);
+                filter: drop-shadow(0 0 25px rgba(139, 92, 246, 1));
             }
         }
         
@@ -152,7 +157,6 @@
             z-index: 0;
         }
         
-        /* Затемнение слева для контраста с текстом, плавный переход к вейпу справа */
         .banner-overlay {
             position: absolute;
             top: 0;
@@ -168,24 +172,27 @@
             z-index: 1;
         }
         
-        /* Неоновая надпись в стиле вывески */
+        /* Текст как на референсе - белые буквы с градиентным свечением */
         .banner-title { 
             position: relative;
             z-index: 2;
-            font-size: clamp(58px, 19vw, 82px);
+            font-size: clamp(60px, 20vw, 86px);
             font-weight: 900; 
-            letter-spacing: 10px;
-            /* Градиент как у дыма на баннере: фиолетовый → голубой → розовый */
-            background: linear-gradient(135deg, #8B5CF6 0%, #06B6D4 50%, #EC4899 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            animation: neonGlow 2.5s ease-in-out infinite;
-            /* Тонкая белая обводка для чёткости */
-            -webkit-text-stroke: 1px rgba(255, 255, 255, 0.4);
+            letter-spacing: 8px;
+            /* Белые буквы как на референсе */
+            color: #ffffff;
+            /* Градиентное свечение вокруг букв (не внутри) */
+            animation: neonSign 2.5s ease-in-out infinite;
+            /* Тонкая обводка для чёткости */
+            -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.9);
             white-space: nowrap;
-            /* Лёгкий наклон как у неоновой вывески */
+            /* Лёгкий наклон как на референсе */
             font-style: italic;
+            /* Тень для объёма */
+            text-shadow: 
+                0 0 10px rgba(139, 92, 246, 0.8),
+                0 0 20px rgba(139, 92, 246, 0.6),
+                0 0 30px rgba(6, 182, 212, 0.5);
         }
         
         .section-title { 
@@ -584,9 +591,9 @@
 <body>
     <div id="home-page" class="page active">
         <div class="header">
-            <div class="search-bar"><span>🔍</span><input type="text" placeholder="Поиск товаров" id="search-input"></div>
+            <div class="search-bar"><span></span><input type="text" placeholder="Поиск товаров" id="search-input"></div>
             <div class="header-actions">
-                <div class="profile-btn" onclick="showProfile()"><span></span></div>
+                <div class="profile-btn" onclick="showProfile()"><span>👤</span></div>
                 <div class="cart-btn-main" onclick="showCart()"><span>🛒</span><span>Корзина</span></div>
             </div>
         </div>
@@ -615,12 +622,12 @@
     </div>
 
     <div id="cart-page" class="page">
-        <div class="top-bar"><button class="back-btn" onclick="goHome()">← Назад</button><h2>🛒 Корзина</h2></div>
+        <div class="top-bar"><button class="back-btn" onclick="goHome()">← Назад</button><h2> Корзина</h2></div>
         <div id="cart-items"><div class="empty-cart">Корзина пуста</div></div>
         <div class="cart-footer">
             <div class="cart-total">Итого: <span id="total-price">0</span> ₽</div>
             <button class="checkout-btn" onclick="checkout()">Оформить заказ</button>
-            <button class="clear-cart-btn" onclick="clearCart()">🗑 Очистить корзину</button>
+            <button class="clear-cart-btn" onclick="clearCart()"> Очистить корзину</button>
         </div>
     </div>
 
@@ -630,7 +637,7 @@
     </div>
 
     <div id="profile-page" class="page">
-        <div class="top-bar"><button class="back-btn" onclick="goHome()">← Назад</button><h2> Профиль</h2></div>
+        <div class="top-bar"><button class="back-btn" onclick="goHome()">← Назад</button><h2>👤 Профиль</h2></div>
         <div class="profile-content">
             <div class="profile-avatar" id="profile-avatar"></div>
             <div class="profile-name" id="profile-name">Гость</div>
@@ -641,7 +648,7 @@
                 <div class="stat-item"><div class="stat-value" id="stat-favorites">0</div><div class="stat-label">Избранное</div></div>
             </div>
             <div class="profile-menu">
-                <div class="menu-item" onclick="showCart()"><span class="menu-icon">🛒</span><span class="menu-text">Корзина</span><span class="menu-arrow">›</span></div>
+                <div class="menu-item" onclick="showCart()"><span class="menu-icon"></span><span class="menu-text">Корзина</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="showFavorites()"><span class="menu-icon">❤️</span><span class="menu-text">Избранное</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="openSupport()"><span class="menu-icon">💬</span><span class="menu-text">Поддержка</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="showAbout()"><span class="menu-icon">ℹ️</span><span class="menu-text">О магазине</span><span class="menu-arrow">›</span></div>
@@ -739,7 +746,7 @@
                 imgHtml = '<img src="' + p.image + '" alt="' + safeName + '" onerror="this.style.display=\'none\'; this.parentElement.querySelector(\'.img-fallback\').style.display=\'flex\';">';
             }
             const fallbackStyle = hasImage ? 'display:none;' : '';
-            const favIcon = isFav ? '❤️' : '';
+            const favIcon = isFav ? '❤️' : '🤍';
             const actionBtn = isFavoritePage 
                 ? '<button class="remove-fav-btn" onclick="removeFromFavorites(' + p.id + ')">Удалить из избранного</button>'
                 : '<button class="add-to-cart-btn" onclick="addToCart(' + p.id + ', \'' + safeName + '\', ' + p.price + ', \'' + (p.image || '').replace(/'/g, "\\'") + '\')">Добавить в корзину</button>';
@@ -879,14 +886,14 @@
             showPage('profile-page');
         }
 
-        function openSupport() { if (tg.openTelegramLink) tg.openTelegramLink('https://t.me/' + MANAGER_USERNAME); else showToast(' @' + MANAGER_USERNAME); }
-        function showAbout() { showToast('ℹ️ PUFFY — curated vape & hookah shop'); }
+        function openSupport() { if (tg.openTelegramLink) tg.openTelegramLink('https://t.me/' + MANAGER_USERNAME); else showToast('💬 @' + MANAGER_USERNAME); }
+        function showAbout() { showToast('️ PUFFY — curated vape & hookah shop'); }
 
         function toggleFavorite(id, element, event) {
             event.stopPropagation();
             const idx = favorites.indexOf(id);
             if (idx === -1) { favorites.push(id); element.textContent = '❤️'; showToast('❤️ Добавлено в избранное'); }
-            else { favorites.splice(idx, 1); element.textContent = ''; showToast('Удалено из избранного'); }
+            else { favorites.splice(idx, 1); element.textContent = '🤍'; showToast('Удалено из избранного'); }
             saveFavoritesToStorage();
         }
 
