@@ -70,20 +70,18 @@ admin_router_instance.bot = bot
 
 dp.include_router(admin_router_instance)
 
-# ⚠️ БЕЗОПАСНОЕ ПРИВЕТСТВИЕ С ПРЕДУПРЕЖДЕНИЕМ 18+
 START_TEXT = """⚠️ Внимание! Контент 18+
 
 PUFFY — каталог продукции для совершеннолетних.
 Быстрая доставка по Екб.
 
-Открывая приложение, вы подтверждаете, что вам есть 18 лет 👇"""
+Открывая приложение, вы подтверждаете, что вам есть 18 лет """
 
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
     """Обработчик /start с защитой от ошибок"""
     print(f"📩 Получен /start от пользователя {message.from_user.id}")
     
-    # 1. Сохраняем пользователя (не блокируем работу при ошибке)
     try:
         username = message.from_user.username or ""
         full_name = message.from_user.full_name or ""
@@ -93,25 +91,20 @@ async def cmd_start(message: types.Message):
         print(f"⚠️ Ошибка сохранения пользователя: {e}")
         traceback.print_exc()
     
-    # 2. Формируем клавиатуру
     try:
         webapp_url = os.environ.get("RENDER_EXTERNAL_URL", f"http://localhost:{WEB_PORT}")
         keyboard = ReplyKeyboardMarkup(
             keyboard=[
-                [KeyboardButton(text=" Открыть каталог", web_app=WebAppInfo(url=webapp_url))],
+                [KeyboardButton(text="🛍 Открыть каталог", web_app=WebAppInfo(url=webapp_url))],
                 [KeyboardButton(text="📞 Связаться с менеджером", url="https://t.me/ghjkIz")]
             ],
             resize_keyboard=True
         )
-        
-        # 3. Отправляем приветствие с предупреждением
         await message.answer(START_TEXT, reply_markup=keyboard)
         print(f"✅ Приветствие отправлено пользователю {message.from_user.id}")
-        
     except Exception as e:
         print(f"❌ Ошибка отправки приветствия: {e}")
         traceback.print_exc()
-        # Пробуем отправить хотя бы текст без клавиатуры
         try:
             await message.answer(START_TEXT)
         except Exception as e2:
@@ -119,20 +112,46 @@ async def cmd_start(message: types.Message):
 
 @dp.message(F.web_app_data)
 async def handle_webapp_data(message: types.Message):
+    """Обработка заказа из Web App с умной связью с пользователем"""
     try:
         data = json.loads(message.web_app_data.data)
         if data.get("type") == "order":
-            order_text = f"🛒 НОВЫЙ ЗАКАЗ\n\n👤 {message.from_user.full_name}\n📱 @{message.from_user.username}\n\n📦 Состав:\n"
+            user = message.from_user
+            
+            # Проверяем наличие юзернейма
+            username_text = f"@{user.username}" if user.username else "Нет юзернейма"
+            user_id = user.id
+            
+            # Магическая ссылка для открытия чата с пользователем по ID
+            profile_link = f"tg://user?id={user_id}"
+            
+            # Формируем красивое сообщение для админа
+            order_text = (
+                f"🛒 <b>НОВЫЙ ЗАКАЗ</b>\n\n"
+                f" <b>{user.full_name}</b>\n"
+                f"🆔 ID: <code>{user_id}</code>\n"
+                f"📱 TG: {username_text}\n"
+                f"🔗 <a href='{profile_link}'>Написать пользователю</a>\n\n"
+                f"📦 <b>Состав:</b>\n"
+            )
+            
             total = 0
             for item in data["items"]:
                 item_sum = item["price"] * item["quantity"]
                 total += item_sum
                 order_text += f"• {item['name']} x{item['quantity']} = {item_sum}₽\n"
-            order_text += f"\n💰 Итого: {total}₽"
-            await message.answer("✅ Заказ принят! Менеджер свяжется с вами.")
-            await bot.send_message(ADMIN_ID, order_text)
+            
+            order_text += f"\n💰 <b>Итого: {total}₽</b>"
+            
+            # Отвечаем пользователю
+            await message.answer("✅ Заказ принят! Менеджер свяжется с вами в ближайшее время.")
+            
+            # Отправляем админу с HTML-разметкой для работы ссылки
+            await bot.send_message(ADMIN_ID, order_text, parse_mode="HTML")
+            print(f"✅ Заказ на {total}₽ от пользователя {user_id} отправлен админу")
+            
     except Exception as e:
-        print(f"Ошибка обработки заказа: {e}")
+        print(f"❌ Ошибка обработки заказа: {e}")
         traceback.print_exc()
 
 async def main():
