@@ -67,7 +67,7 @@ dp = Dispatcher(storage=storage)
 setup_admin(ADMIN_ID, bot)
 dp.include_router(admin_router)
 
-START_TEXT = """🛍 PUFFY — твой вейп-шоп в Екб
+START_TEXT = """ PUFFY — твой вейп-шоп в Екб
 
 ✅ Только оригинальная продукция
 ✅ Цены ниже, чем в офлайн-магазинах
@@ -84,13 +84,13 @@ async def cmd_start(message: types.Message):
         full_name = message.from_user.full_name or ""
         await save_user(message.from_user.id, username, full_name)
     except Exception as e:
-        print(f"️ Ошибка сохранения пользователя: {e}")
+        print(f"⚠️ Ошибка сохранения пользователя: {e}")
     
     try:
         webapp_url = os.environ.get("RENDER_EXTERNAL_URL", f"http://localhost:{WEB_PORT}")
         keyboard = ReplyKeyboardMarkup(
             keyboard=[
-                [KeyboardButton(text=" Открыть каталог", web_app=WebAppInfo(url=webapp_url))],
+                [KeyboardButton(text="🛍 Открыть каталог", web_app=WebAppInfo(url=webapp_url))],
                 [KeyboardButton(text="📞 Связаться с менеджером", url="https://t.me/ghjkIz")]
             ],
             resize_keyboard=True
@@ -114,10 +114,10 @@ async def handle_webapp_data(message: types.Message):
             profile_link = f"tg://user?id={user_id}"
             
             order_text = (
-                f" <b>НОВЫЙ ЗАКАЗ</b>\n\n"
-                f" <b>{user.full_name}</b>\n"
+                f"🛒 <b>НОВЫЙ ЗАКАЗ</b>\n\n"
+                f"👤 <b>{user.full_name}</b>\n"
                 f"🆔 ID: <code>{user_id}</code>\n"
-                f" TG: {username_text}\n"
+                f"📱 TG: {username_text}\n"
                 f"🔗 <a href='{profile_link}'>Написать пользователю</a>\n\n"
                 f"📦 <b>Состав:</b>\n"
             )
