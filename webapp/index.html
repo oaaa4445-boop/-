@@ -124,7 +124,7 @@
     </div>
 
     <div id="search-page" class="page">
-        <div class="top-bar"><button class="back-btn" onclick="clearSearch()">← Назад</button><h2>🔍 Поиск</h2></div>
+        <div class="top-bar"><button class="back-btn" onclick="clearSearch()">← Назад</button><h2> Поиск</h2></div>
         <div class="search-results-title" id="search-results-title"></div>
         <div class="products-grid" id="search-results-grid"><div class="loading">Поиск...</div></div>
     </div>
@@ -159,7 +159,7 @@
                 <div class="menu-item" onclick="showCart()"><span class="menu-icon">🛒</span><span class="menu-text">Корзина</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="showFavorites()"><span class="menu-icon">❤️</span><span class="menu-text">Избранное</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="openSupport()"><span class="menu-icon">💬</span><span class="menu-text">Поддержка</span><span class="menu-arrow">›</span></div>
-                <div class="menu-item" onclick="showAbout()"><span class="menu-icon">️</span><span class="menu-text">О магазине</span><span class="menu-arrow">›</span></div>
+                <div class="menu-item" onclick="showAbout()"><span class="menu-icon">ℹ️</span><span class="menu-text">О магазине</span><span class="menu-arrow">›</span></div>
             </div>
         </div>
     </div>
@@ -168,7 +168,30 @@
         const tg = window.Telegram.WebApp;
         tg.expand();
         tg.ready();
-        const tgUser = tg.initDataUnsafe?.user || {};
+        
+        // ✅ Надёжное получение данных пользователя
+        let tgUser = null;
+        
+        function getUserData() {
+            try {
+                const initData = tg.initDataUnsafe;
+                if (initData && initData.user) {
+                    tgUser = initData.user;
+                    console.log('✅ Данные пользователя получены:', tgUser);
+                    return true;
+                } else {
+                    console.log('️ Данные пользователя недоступны');
+                    return false;
+                }
+            } catch (e) {
+                console.error('❌ Ошибка получения данных:', e);
+                return false;
+            }
+        }
+        
+        // Пробуем получить данные сразу и через 500мс
+        getUserData();
+        setTimeout(getUserData, 500);
 
         let cart = [];
         let favorites = [];
@@ -187,7 +210,7 @@
         loadOrdersFromStorage();
 
         const MANAGER_USERNAME = 'ghjkIz';
-        const categoryEmojis = {'Одноразки': '💨', 'Под-системы': '🔋', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
+        const categoryEmojis = {'Одноразки': '💨', 'Под-системы': '🔋', 'Жидкость': '', 'Расходники': '⚙️', 'Жевательный табак': '', 'Кальяны': '🪝'};
 
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('visible'); });
@@ -320,7 +343,7 @@
         }
 
         function checkout() {
-            if (cart.length === 0) { showToast('🛒 Корзина пуста'); return; }
+            if (cart.length === 0) { showToast(' Корзина пуста'); return; }
             const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
             
             // Передаём user_id для связи с пользователем даже без username
@@ -328,7 +351,7 @@
                 type: 'order', 
                 items: cart, 
                 total: total, 
-                user_id: tgUser.id 
+                user_id: tgUser ? tgUser.id : null 
             };
             
             if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
@@ -340,17 +363,22 @@
         }
 
         function showProfile() {
-            const user = tg.initDataUnsafe?.user;
+            // ✅ Надёжное получение данных при каждом открытии профиля
+            getUserData();
+            
             let name = 'Гость';
             let username = '@неизвестно';
             let avatarLetter = 'Г';
 
-            if (user) {
-                const firstName = user.first_name || '';
-                const lastName = user.last_name || '';
+            if (tgUser) {
+                const firstName = tgUser.first_name || '';
+                const lastName = tgUser.last_name || '';
                 name = [firstName, lastName].filter(Boolean).join(' ').trim() || 'Пользователь';
-                username = user.username ? '@' + user.username : '@скрыт';
+                username = tgUser.username ? '@' + tgUser.username : '@скрыт';
                 avatarLetter = (firstName || 'U').charAt(0).toUpperCase();
+                console.log('✅ Профиль загружен:', name, username);
+            } else {
+                console.log('⚠️ Данные пользователя недоступны при открытии профиля');
             }
 
             document.getElementById('profile-name').textContent = name;
