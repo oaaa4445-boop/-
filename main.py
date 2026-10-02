@@ -64,9 +64,7 @@ bot = Bot(token=BOT_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
-# ✅ ПРАВИЛЬНАЯ установка админа через функцию-сеттер
 setup_admin(ADMIN_ID, bot)
-
 dp.include_router(admin_router)
 
 START_TEXT = """🛍 PUFFY — твой вейп-шоп в Екб
@@ -76,17 +74,15 @@ START_TEXT = """🛍 PUFFY — твой вейп-шоп в Екб
 ✅ Доставка за 60 минут по городу
 ✅ Скидки постоянным клиентам
 
-️ 18+"""
+⚠️ 18+"""
 
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
     print(f"📩 Получен /start от пользователя {message.from_user.id}")
-    
     try:
         username = message.from_user.username or ""
         full_name = message.from_user.full_name or ""
         await save_user(message.from_user.id, username, full_name)
-        print(f"✅ Пользователь {message.from_user.id} сохранён в БД")
     except Exception as e:
         print(f"️ Ошибка сохранения пользователя: {e}")
     
@@ -100,9 +96,8 @@ async def cmd_start(message: types.Message):
             resize_keyboard=True
         )
         await message.answer(START_TEXT, reply_markup=keyboard)
-        print(f"✅ Приветствие отправлено пользователю {message.from_user.id}")
     except Exception as e:
-        print(f" Ошибка отправки приветствия: {e}")
+        print(f"❌ Ошибка: {e}")
         try:
             await message.answer(START_TEXT)
         except:
@@ -120,7 +115,7 @@ async def handle_webapp_data(message: types.Message):
             
             order_text = (
                 f" <b>НОВЫЙ ЗАКАЗ</b>\n\n"
-                f"👤 <b>{user.full_name}</b>\n"
+                f" <b>{user.full_name}</b>\n"
                 f"🆔 ID: <code>{user_id}</code>\n"
                 f" TG: {username_text}\n"
                 f"🔗 <a href='{profile_link}'>Написать пользователю</a>\n\n"
@@ -138,7 +133,6 @@ async def handle_webapp_data(message: types.Message):
             await message.answer("✅ Заказ принят! Менеджер свяжется с вами в ближайшее время.")
             await bot.send_message(ADMIN_ID, order_text, parse_mode="HTML")
             print(f"✅ Заказ на {total}₽ от пользователя {user_id} отправлен админу")
-            
     except Exception as e:
         print(f"❌ Ошибка обработки заказа: {e}")
         traceback.print_exc()
