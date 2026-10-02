@@ -26,12 +26,10 @@
         
         @keyframes glowText {
             0%, 100% { 
-                text-shadow: 0 0 8px rgba(176, 38, 255, 0.3), 0 0 15px rgba(0, 212, 255, 0.2); 
-                filter: drop-shadow(0 0 15px rgba(176, 38, 255, 0.5)); 
+                filter: drop-shadow(0 0 8px rgba(176, 38, 255, 0.5)) drop-shadow(0 0 15px rgba(0, 212, 255, 0.3));
             }
             50% { 
-                text-shadow: 0 0 12px rgba(176, 38, 255, 0.5), 0 0 25px rgba(0, 212, 255, 0.3); 
-                filter: drop-shadow(0 0 30px rgba(176, 38, 255, 0.8)); 
+                filter: drop-shadow(0 0 12px rgba(176, 38, 255, 0.7)) drop-shadow(0 0 20px rgba(0, 212, 255, 0.4));
             }
         }
         
@@ -127,9 +125,6 @@
             border-radius: 24px; 
             margin-bottom: 28px; 
             height: 280px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: flex-start;
             position: relative;
             overflow: hidden;
             border: 1px solid rgba(176, 38, 255, 0.3);
@@ -153,29 +148,29 @@
             width: 100%;
             height: 100%;
             background: linear-gradient(90deg, 
-                rgba(10,10,15,0.70) 0%, 
-                rgba(10,10,15,0.50) 30%, 
-                rgba(10,10,15,0.30) 60%, 
-                rgba(10,10,15,0.10) 100%);
+                rgba(10,10,15,0.88) 0%, 
+                rgba(10,10,15,0.70) 25%, 
+                rgba(10,10,15,0.40) 55%, 
+                rgba(10,10,15,0.15) 80%,
+                rgba(10,10,15,0.05) 100%);
             z-index: 1;
         }
         
         .banner-title { 
-            font-size: 90px; 
+            position: absolute;
+            left: 50%;
+            top: 48%;
+            transform: translate(-35%, -50%);
+            font-size: 72px; 
             font-weight: 900; 
-            letter-spacing: 14px;
+            letter-spacing: 8px;
             background: linear-gradient(135deg, #b026ff 0%, #00d4ff 50%, #ff2d95 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            animation: glowText 3s ease-in-out infinite;
-            position: absolute;
-            left: 40px;
-            top: 50%;
-            transform: translateY(-50%);
+            animation: glowText 2.5s ease-in-out infinite;
             z-index: 2;
-            -webkit-text-stroke: 2px rgba(255, 255, 255, 0.4);
-            filter: drop-shadow(0 0 30px rgba(176, 38, 255, 0.8));
+            -webkit-text-stroke: 2.5px rgba(255, 255, 255, 0.5);
             white-space: nowrap;
         }
         
@@ -635,7 +630,7 @@
                 <div class="menu-item" onclick="showCart()"><span class="menu-icon">🛒</span><span class="menu-text">Корзина</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="showFavorites()"><span class="menu-icon">❤️</span><span class="menu-text">Избранное</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="openSupport()"><span class="menu-icon">💬</span><span class="menu-text">Поддержка</span><span class="menu-arrow">›</span></div>
-                <div class="menu-item" onclick="showAbout()"><span class="menu-icon">ℹ️</span><span class="menu-text">О магазине</span><span class="menu-arrow">›</span></div>
+                <div class="menu-item" onclick="showAbout()"><span class="menu-icon">️</span><span class="menu-text">О магазине</span><span class="menu-arrow">›</span></div>
             </div>
         </div>
     </div>
@@ -685,7 +680,7 @@
                     if (hasImage) {
                         imgHtml = '<img class="cat-img" src="' + cat.image + '" alt="' + cat.name + '" onerror="this.style.display=\'none\'; this.parentElement.querySelector(\'.cat-emoji-fallback\').style.display=\'block\';">';
                     }
-                    const emoji = categoryEmojis[cat.name] || '';
+                    const emoji = categoryEmojis[cat.name] || '📦';
                     const fallbackStyle = hasImage ? 'display:none;' : 'display:block;';
                     return '<div class="category-card fade-in" onclick="openCategory(\'' + cat.name + '\')" style="transition-delay: ' + (index * 0.1) + 's">' + imgHtml + '<div class="cat-emoji-fallback" style="' + fallbackStyle + '">' + emoji + '</div><div class="cat-overlay"></div><div class="name">' + cat.name + '</div></div>';
                 }).join('');
@@ -755,7 +750,7 @@
                 const response = await fetch('/api/search?q=' + encodeURIComponent(query));
                 const products = await response.json();
                 if (products.length === 0) {
-                    grid.innerHTML = '<div class="empty-search">🔍<br><br>Ничего не найдено<br><br>Попробуйте другой запрос</div>';
+                    grid.innerHTML = '<div class="empty-search"><br><br>Ничего не найдено<br><br>Попробуйте другой запрос</div>';
                     return;
                 }
                 title.innerHTML = 'Найдено: <span>' + products.length + '</span> товаров по запросу "' + query + '"';
