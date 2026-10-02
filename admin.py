@@ -46,7 +46,7 @@ def get_admin_main_keyboard():
         [InlineKeyboardButton(text="📦 Управление товарами", callback_data="admin_products")],
         [InlineKeyboardButton(text="📂 Управление категориями", callback_data="admin_categories")],
         [InlineKeyboardButton(text="📢 Рассылка", callback_data="admin_broadcast_placeholder")],
-        [InlineKeyboardButton(text=" Закрыть панель", callback_data="admin_close")]
+        [InlineKeyboardButton(text="🔙 Закрыть панель", callback_data="admin_close")]
     ])
 
 def get_admin_back_keyboard():
@@ -55,43 +55,39 @@ def get_admin_back_keyboard():
     ])
 
 def get_products_keyboard(categories):
-    """Клавиатура со списком категорий для просмотра товаров + кнопка добавить"""
     buttons = []
     for cat in categories:
         buttons.append([InlineKeyboardButton(
-            text=f"📂 {cat['name']}",
+            text=f" {cat['name']}",
             callback_data=f"admin_view_cat_{cat['id']}"
         )])
     buttons.append([InlineKeyboardButton(text="➕ Добавить товар", callback_data="admin_add_product")])
     buttons.append([InlineKeyboardButton(text="🔙 Назад", callback_data="admin_menu")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-def get_products_list_keyboard(products, category_name, category_id):
-    """Клавиатура со списком товаров в категории"""
+def get_products_list_keyboard(products, category_name):
     buttons = []
     for p in products[:20]:
         name_short = p['name'][:25] + "..." if len(p['name']) > 25 else p['name']
         buttons.append([InlineKeyboardButton(
             text=f"🗑 {name_short} — {int(p['price'])}₽",
-            callback_data=f"admin_del_{p['id']}"
+            callback_data=f"admin_del_prod_{p['id']}"  # ✅ Изменён префикс
         )])
-    buttons.append([InlineKeyboardButton(text=f"🔙 К категориям", callback_data="admin_products")])
+    buttons.append([InlineKeyboardButton(text=f" К категориям", callback_data="admin_products")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def get_categories_manage_keyboard(categories):
-    """Клавиатура для управления категориями (с кнопками удаления)"""
     buttons = []
     for cat in categories:
         buttons.append([InlineKeyboardButton(
             text=f" {cat['name']}",
-            callback_data=f"admin_del_cat_{cat['id']}"
+            callback_data=f"admin_remove_cat_{cat['id']}"  # ✅ Изменён префикс
         )])
     buttons.append([InlineKeyboardButton(text="➕ Добавить категорию", callback_data="admin_add_category")])
     buttons.append([InlineKeyboardButton(text="🔙 Назад", callback_data="admin_menu")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def get_category_select_keyboard(categories):
-    """Клавиатура выбора категории для добавления товара"""
     buttons = []
     for cat in categories:
         buttons.append([InlineKeyboardButton(
@@ -114,7 +110,7 @@ async def admin_command(message: types.Message):
         await message.answer("⛔ Доступ запрещен")
         return
     await message.answer(
-        "🛠 **Панель администратора PUFFY**\n\nВыберите действие:",
+        " **Панель администратора PUFFY**\n\nВыберите действие:",
         reply_markup=get_admin_main_keyboard(),
         parse_mode="Markdown"
     )
@@ -126,7 +122,7 @@ async def admin_menu(callback: types.CallbackQuery, state: FSMContext):
         return
     await state.clear()
     await callback.message.edit_text(
-        "🛠 **Панель администратора PUFFY**\n\nВыберите действие:",
+        " **Панель администратора PUFFY**\n\nВыберите действие:",
         reply_markup=get_admin_main_keyboard(),
         parse_mode="Markdown"
     )
@@ -142,8 +138,8 @@ async def admin_stats(callback: types.CallbackQuery):
         products = await get_product_count()
         text = (
             "📊 **Статистика магазина**\n\n"
-            f" Всего пользователей: `{users}`\n"
-            f"📦 Всего товаров в каталоге: `{products}`\n\n"
+            f"👥 Всего пользователей: `{users}`\n"
+            f" Всего товаров в каталоге: `{products}`\n\n"
             "Данные актуальны на текущий момент."
         )
         await callback.message.edit_text(text, reply_markup=get_admin_back_keyboard(), parse_mode="Markdown")
@@ -156,7 +152,7 @@ async def admin_stats(callback: types.CallbackQuery):
 @router.callback_query(F.data == "admin_products")
 async def admin_products(callback: types.CallbackQuery):
     if not is_admin(callback.from_user.id):
-        await callback.answer(" Доступ запрещен", show_alert=True)
+        await callback.answer("⛔ Доступ запрещен", show_alert=True)
         return
     try:
         categories = await get_categories()
@@ -196,17 +192,17 @@ async def admin_view_category(callback: types.CallbackQuery):
         
         await callback.message.edit_text(
             text,
-            reply_markup=get_products_list_keyboard(products, category['name'], cat_id),
+            reply_markup=get_products_list_keyboard(products, category['name']),
             parse_mode="Markdown"
         )
     except Exception as e:
         await callback.answer(f"Ошибка: {e}", show_alert=True)
     await callback.answer()
 
-@router.callback_query(F.data.startswith("admin_del_"))
+@router.callback_query(F.data.startswith("admin_del_prod_"))  # ✅ Изменён префикс
 async def admin_delete_product(callback: types.CallbackQuery):
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Доступ запрещен", show_alert=True)
+        await callback.answer(" Доступ запрещен", show_alert=True)
         return
     try:
         product_id = int(callback.data.split("_")[-1])
@@ -219,7 +215,7 @@ async def admin_delete_product(callback: types.CallbackQuery):
         await callback.answer(f"Ошибка удаления: {e}", show_alert=True)
     await callback.answer()
 
-# ========== ДОБАВЛЕНИЕ ТОВАРА (с выбором категории кнопками) ==========
+# ========== ДОБАВЛЕНИЕ ТОВАРА ==========
 
 @router.callback_query(F.data == "admin_add_product")
 async def admin_add_product_start(callback: types.CallbackQuery, state: FSMContext):
@@ -237,7 +233,7 @@ async def admin_add_product_start(callback: types.CallbackQuery, state: FSMConte
     
     await state.set_state(AddProduct.category)
     await callback.message.edit_text(
-        " **Добавление товара**\n\nШаг 1/6: Выберите категорию:",
+        "➕ **Добавление товара**\n\nШаг 1/6: Выберите категорию:",
         reply_markup=get_category_select_keyboard(categories),
         parse_mode="Markdown"
     )
@@ -257,7 +253,7 @@ async def process_category_select(callback: types.CallbackQuery, state: FSMConte
     await state.update_data(category=category['name'])
     await state.set_state(AddProduct.name)
     await callback.message.edit_text(
-        f"✅ Категория: **{category['name']}**\n\n Шаг 2/6: Введите **название товара**:",
+        f"✅ Категория: **{category['name']}**\n\n📝 Шаг 2/6: Введите **название товара**:",
         reply_markup=get_cancel_keyboard(),
         parse_mode="Markdown"
     )
@@ -301,7 +297,7 @@ async def process_price(message: types.Message, state: FSMContext):
             parse_mode="Markdown"
         )
     except ValueError:
-        await message.answer(" Неверный формат цены. Введите число, например 1500")
+        await message.answer("❌ Неверный формат цены. Введите число, например 1500")
 
 @router.message(AddProduct.image, F.photo)
 async def process_image_photo(message: types.Message, state: FSMContext):
@@ -387,7 +383,7 @@ async def admin_categories(callback: types.CallbackQuery):
         await callback.answer(f"Ошибка: {e}", show_alert=True)
     await callback.answer()
 
-@router.callback_query(F.data.startswith("admin_del_cat_"))
+@router.callback_query(F.data.startswith("admin_remove_cat_"))  # ✅ Изменён префикс
 async def admin_delete_category(callback: types.CallbackQuery):
     if not is_admin(callback.from_user.id):
         await callback.answer("⛔ Доступ запрещен", show_alert=True)
@@ -440,6 +436,7 @@ async def process_category_name(message: types.Message, state: FSMContext):
     name = message.text.strip()
     
     # Проверяем, нет ли уже такой категории
+    from database import get_category_by_name
     existing = await get_category_by_name(name)
     if existing:
         await message.answer(f"❌ Категория '{name}' уже существует!")
@@ -504,7 +501,7 @@ async def process_category_image_text(message: types.Message, state: FSMContext)
 @router.callback_query(F.data == "admin_close")
 async def admin_close(callback: types.CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Доступ запрещен", show_alert=True)
+        await callback.answer(" Доступ запрещен", show_alert=True)
         return
     await state.clear()
     await callback.message.edit_text("✅ Панель администратора закрыта.")
