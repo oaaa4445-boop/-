@@ -26,10 +26,16 @@
         
         @keyframes glowText {
             0%, 100% { 
-                filter: drop-shadow(0 0 30px rgba(176, 38, 255, 1)) drop-shadow(0 0 60px rgba(0, 212, 255, 0.8)) drop-shadow(0 0 100px rgba(255, 45, 149, 0.6));
+                filter: drop-shadow(0 0 20px rgba(138, 43, 226, 1)) 
+                        drop-shadow(0 0 40px rgba(0, 191, 255, 0.9)) 
+                        drop-shadow(0 0 60px rgba(255, 20, 147, 0.7))
+                        drop-shadow(0 0 100px rgba(138, 43, 226, 0.5));
             }
             50% { 
-                filter: drop-shadow(0 0 40px rgba(176, 38, 255, 1)) drop-shadow(0 0 80px rgba(0, 212, 255, 1)) drop-shadow(0 0 120px rgba(255, 45, 149, 0.8));
+                filter: drop-shadow(0 0 30px rgba(138, 43, 226, 1)) 
+                        drop-shadow(0 0 60px rgba(0, 191, 255, 1)) 
+                        drop-shadow(0 0 90px rgba(255, 20, 147, 0.9))
+                        drop-shadow(0 0 140px rgba(138, 43, 226, 0.7));
             }
         }
         
@@ -161,16 +167,16 @@
             left: 50%;
             top: 50%;
             transform: translate(-50%, -50%);
-            font-size: clamp(44px, 14vw, 72px);
+            font-size: clamp(52px, 16vw, 84px);
             font-weight: 900; 
-            letter-spacing: 4px;
-            background: linear-gradient(135deg, #b026ff 0%, #00d4ff 50%, #ff2d95 100%);
+            letter-spacing: 6px;
+            background: linear-gradient(135deg, #8A2BE2 0%, #00BFFF 40%, #FF1493 70%, #8A2BE2 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
             animation: glowText 2s ease-in-out infinite;
             z-index: 2;
-            -webkit-text-stroke: 2px rgba(255, 255, 255, 0.5);
+            -webkit-text-stroke: 2.5px rgba(255, 255, 255, 0.7);
             white-space: nowrap;
         }
         
@@ -573,7 +579,7 @@
             <div class="search-bar"><span>🔍</span><input type="text" placeholder="Поиск товаров" id="search-input"></div>
             <div class="header-actions">
                 <div class="profile-btn" onclick="showProfile()"><span>👤</span></div>
-                <div class="cart-btn-main" onclick="showCart()"><span></span><span>Корзина</span></div>
+                <div class="cart-btn-main" onclick="showCart()"><span>🛒</span><span>Корзина</span></div>
             </div>
         </div>
         
@@ -629,7 +635,7 @@
             <div class="profile-menu">
                 <div class="menu-item" onclick="showCart()"><span class="menu-icon">🛒</span><span class="menu-text">Корзина</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="showFavorites()"><span class="menu-icon">❤️</span><span class="menu-text">Избранное</span><span class="menu-arrow">›</span></div>
-                <div class="menu-item" onclick="openSupport()"><span class="menu-icon"></span><span class="menu-text">Поддержка</span><span class="menu-arrow">›</span></div>
+                <div class="menu-item" onclick="openSupport()"><span class="menu-icon">💬</span><span class="menu-text">Поддержка</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="showAbout()"><span class="menu-icon">ℹ️</span><span class="menu-text">О магазине</span><span class="menu-arrow">›</span></div>
             </div>
         </div>
@@ -658,7 +664,7 @@
         loadOrdersFromStorage();
 
         const MANAGER_USERNAME = 'ghjkIz';
-        const categoryEmojis = {'Одноразки': '', 'Под-системы': '🔋', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
+        const categoryEmojis = {'Одноразки': '💨', 'Под-системы': '🔋', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
 
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
@@ -750,7 +756,7 @@
                 const response = await fetch('/api/search?q=' + encodeURIComponent(query));
                 const products = await response.json();
                 if (products.length === 0) {
-                    grid.innerHTML = '<div class="empty-search"><br><br>Ничего не найдено<br><br>Попробуйте другой запрос</div>';
+                    grid.innerHTML = '<div class="empty-search">🔍<br><br>Ничего не найдено<br><br>Попробуйте другой запрос</div>';
                     return;
                 }
                 title.innerHTML = 'Найдено: <span>' + products.length + '</span> товаров по запросу "' + query + '"';
@@ -813,7 +819,7 @@
 
         function showCart() {
             const container = document.getElementById('cart-items');
-            if (cart.length === 0) { container.innerHTML = '<div class="empty-cart"><br><br>Корзина пуста<br><br>Добавьте товары из каталога</div>'; }
+            if (cart.length === 0) { container.innerHTML = '<div class="empty-cart">🛒<br><br>Корзина пуста<br><br>Добавьте товары из каталога</div>'; }
             else {
                 container.innerHTML = cart.map(item => {
                     const hasImage = item.image && item.image.length > 5 && item.image.startsWith('http');
@@ -841,7 +847,7 @@
         }
 
         function checkout() {
-            if (cart.length === 0) { showToast(' Корзина пуста'); return; }
+            if (cart.length === 0) { showToast('🛒 Корзина пуста'); return; }
             const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
             const data = { type: 'order', items: cart, total: total };
             if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
