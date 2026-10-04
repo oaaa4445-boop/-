@@ -108,7 +108,7 @@ async def cmd_start(message: types.Message):
         await message.answer(START_TEXT, reply_markup=inline_keyboard)
         
         # Отправляем минимальное сообщение с reply-кнопкой (чтобы она закрепилась внизу)
-        await message.answer("🛍", reply_markup=reply_keyboard)
+        await message.answer(reply_markup=reply_keyboard)
         
         print(f"✅ Приветствие отправлено пользователю {message.from_user.id}")
     except Exception as e:
