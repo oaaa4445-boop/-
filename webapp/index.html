@@ -163,6 +163,7 @@
         .checkout-btn, .clear-cart-btn { width: 100%; border: none; border-radius: 14px; font-weight: 700; cursor: pointer; transition: all 0.3s; }
         .checkout-btn { background: linear-gradient(135deg, #b026ff, #ff2d95); color: #fff; padding: 16px; font-size: 16px; box-shadow: 0 0 25px rgba(176, 38, 255, 0.5); }
         .checkout-btn:active { transform: scale(0.98); box-shadow: 0 0 35px rgba(176, 38, 255, 0.8); }
+        .checkout-btn:disabled { opacity: 0.6; cursor: not-allowed; }
         .clear-cart-btn { background: rgba(255, 45, 149, 0.15); color: #ff2d95; border: 1px solid rgba(255, 45, 149, 0.4); padding: 14px; font-size: 14px; margin-top: 10px; }
         .clear-cart-btn:active { background: rgba(255, 45, 149, 0.3); box-shadow: 0 0 20px rgba(255, 45, 149, 0.5); }
         
@@ -199,7 +200,7 @@
         <div class="header">
             <div class="search-bar"><span>🔍</span><input type="text" placeholder="Поиск товаров" id="search-input"></div>
             <div class="header-actions">
-                <div class="profile-btn" onclick="showProfile()"><span></span></div>
+                <div class="profile-btn" onclick="showProfile()"><span>👤</span></div>
                 <div class="cart-btn-main" onclick="showCart()"><span>🛒</span><span>Корзина</span></div>
             </div>
         </div>
@@ -230,7 +231,7 @@
     </div>
 
     <div id="cart-page" class="page">
-        <div class="top-bar"><button class="back-btn" onclick="goHome()">← Назад</button><h2> Корзина</h2></div>
+        <div class="top-bar"><button class="back-btn" onclick="goHome()">← Назад</button><h2>🛒 Корзина</h2></div>
         <div id="cart-items"><div class="empty-cart">Корзина пуста</div></div>
         <div class="cart-footer">
             <div class="cart-total">Итого: <span id="total-price">0</span> ₽</div>
@@ -259,7 +260,7 @@
                 <div class="menu-item" onclick="showCart()"><span class="menu-icon">🛒</span><span class="menu-text">Корзина</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="showFavorites()"><span class="menu-icon">❤️</span><span class="menu-text">Избранное</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="openSupport()"><span class="menu-icon">💬</span><span class="menu-text">Поддержка</span><span class="menu-arrow">›</span></div>
-                <div class="menu-item" onclick="showAbout()"><span class="menu-icon">ℹ️</span><span class="menu-text">О магазине</span><span class="menu-arrow">›</span></div>
+                <div class="menu-item" onclick="showAbout()"><span class="menu-icon">️</span><span class="menu-text">О магазине</span><span class="menu-arrow">›</span></div>
             </div>
         </div>
     </div>
@@ -305,7 +306,7 @@
         loadOrdersFromStorage();
 
         const MANAGER_USERNAME = 'ghjkIz';
-        const categoryEmojis = {'Одноразки': '💨', 'Под-системы': '🔋', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
+        const categoryEmojis = {'Одноразки': '', 'Под-системы': '🔋', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
 
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('visible'); });
@@ -320,7 +321,7 @@
                 grid.innerHTML = categories.map((cat, index) => {
                     const hasImage = cat.image && cat.image.length > 5 && cat.image.startsWith('http');
                     let imgHtml = hasImage ? '<img class="cat-img" src="' + cat.image + '" alt="' + cat.name + '" onerror="this.style.display=\'none\'; this.parentElement.querySelector(\'.cat-emoji-fallback\').style.display=\'block\';">' : '';
-                    const emoji = categoryEmojis[cat.name] || '';
+                    const emoji = categoryEmojis[cat.name] || '📦';
                     const fallbackStyle = hasImage ? 'display:none;' : 'display:block;';
                     return '<div class="category-card fade-in" onclick="openCategory(\'' + cat.name + '\')" style="transition-delay: ' + (index * 0.1) + 's">' + imgHtml + '<div class="cat-emoji-fallback" style="' + fallbackStyle + '">' + emoji + '</div><div class="cat-overlay"></div><div class="name">' + cat.name + '</div></div>';
                 }).join('');
@@ -379,9 +380,9 @@
                 
                 if (flavorsList.length > 0) {
                     let title = 'В наличии:';
-                    let emoji = '📦';
+                    let emoji = '';
                     if (flavorsType === 'Вкусы') { title = 'Вкусы в наличии:'; emoji = '🍓'; }
-                    else if (flavorsType === 'Цвета') { title = 'Цвета в наличии:'; emoji = ''; }
+                    else if (flavorsType === 'Цвета') { title = 'Цвета в наличии:'; emoji = '🎨'; }
                     else if (flavorsType === 'Характеристики') { title = 'Характеристики:'; emoji = '⚙️'; }
                     else if (flavorsType === 'Размеры') { title = 'Размеры в наличии:'; emoji = '📏'; }
                     
@@ -512,13 +513,13 @@
                 return; 
             }
             
-            if (!tg || !tg.sendData) {
-                showToast('❌ Откройте через Telegram');
-                console.error('❌ tg.sendData недоступен');
-                return;
-            }
-            
             const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+            
+            const userInfo = {
+                id: tgUser ? tgUser.id : null,
+                name: tgUser ? ((tgUser.first_name || '') + ' ' + (tgUser.last_name || '')).trim() : 'Гость',
+                username: tgUser ? (tgUser.username || '') : ''
+            };
             
             const orderData = {
                 type: 'order',
@@ -530,37 +531,66 @@
                     image: item.image || ''
                 })),
                 total: total,
-                user_id: tgUser ? tgUser.id : null,
+                user: userInfo,
                 timestamp: new Date().toISOString()
             };
             
             console.log('📦 Данные заказа:', orderData);
             
-            showToast('✅ Заказ оформлен!');
+            const btn = document.querySelector('.checkout-btn');
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = '⏳ Оформление...';
+                btn.style.opacity = '0.6';
+            }
             
-            orders.push({ 
-                date: new Date().toISOString(), 
-                items: JSON.parse(JSON.stringify(cart)), 
-                total: total 
+            fetch('/api/order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(orderData)
+            })
+            .then(response => response.json())
+            .then(result => {
+                console.log('✅ Ответ сервера:', result);
+                
+                if (result.success) {
+                    showToast('✅ Заказ оформлен!');
+                    
+                    orders.push({ 
+                        date: new Date().toISOString(), 
+                        items: JSON.parse(JSON.stringify(cart)), 
+                        total: total 
+                    });
+                    saveOrdersToStorage();
+                    
+                    if (tg.HapticFeedback) {
+                        tg.HapticFeedback.notificationOccurred('success');
+                    }
+                    
+                    cart = [];
+                    saveCartToStorage();
+                    
+                    setTimeout(() => {
+                        if (tg.close) tg.close();
+                    }, 2000);
+                } else {
+                    showToast('❌ Ошибка: ' + (result.error || 'неизвестно'));
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = 'Оформить заказ';
+                        btn.style.opacity = '1';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('❌ Ошибка fetch:', error);
+                showToast('❌ Ошибка сети');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = 'Оформить заказ';
+                    btn.style.opacity = '1';
+                }
             });
-            saveOrdersToStorage();
-            
-            if (tg.HapticFeedback) {
-                tg.HapticFeedback.notificationOccurred('success');
-            }
-            
-            cart = [];
-            saveCartToStorage();
-            
-            try {
-                const jsonString = JSON.stringify(orderData);
-                console.log('📤 Отправляю через sendData:', jsonString);
-                tg.sendData(jsonString);
-                console.log('✅ sendData выполнен');
-            } catch (e) {
-                console.error('❌ Ошибка sendData:', e);
-                showToast('❌ Ошибка отправки');
-            }
         }
 
         function showProfile() {
@@ -585,14 +615,14 @@
             showPage('profile-page');
         }
 
-        function openSupport() { if (tg.openTelegramLink) tg.openTelegramLink('https://t.me/' + MANAGER_USERNAME); else showToast(' @' + MANAGER_USERNAME); }
+        function openSupport() { if (tg.openTelegramLink) tg.openTelegramLink('https://t.me/' + MANAGER_USERNAME); else showToast('💬 @' + MANAGER_USERNAME); }
         function showAbout() { showToast('ℹ️ PUFFY — curated vape & hookah shop'); }
 
         function toggleFavorite(id, element, event) {
             event.stopPropagation();
             const idx = favorites.indexOf(id);
             if (idx === -1) { favorites.push(id); element.textContent = '❤️'; showToast('❤️ Добавлено в избранное'); }
-            else { favorites.splice(idx, 1); element.textContent = ''; showToast('Удалено из избранного'); }
+            else { favorites.splice(idx, 1); element.textContent = '🤍'; showToast('Удалено из избранного'); }
             saveFavoritesToStorage();
         }
 
