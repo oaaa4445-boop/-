@@ -176,7 +176,6 @@ START_TEXT = """🛍 PUFFY — твой вейп-шоп в Екб
 
 ✅ Только оригинальная продукция
 ✅ Цены ниже, чем в офлайн-магазинах
-✅ Доставка за 60 минут по городу
 ✅ Скидки постоянным клиентам
 
 ️ 18+"""
@@ -258,7 +257,6 @@ async def handle_webapp_data(message: types.Message):
                 f"• Позиций: {items_count}\n"
                 f"• Сумма: <b>{total}₽</b>\n\n"
                 f"⏳ <b>Ожидайте</b> — менеджер свяжется с вами в ближайшее время.\n\n"
-                f"Вопросы? @{MANAGER_USERNAME}"
             )
             await message.answer(user_msg, parse_mode="HTML")
             print(f"✅ Подтверждение отправлено пользователю (fallback)")
