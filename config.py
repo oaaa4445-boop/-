@@ -5,7 +5,7 @@ ADMIN_ID = int(os.environ.get("ADMIN_ID", "0"))
 WEB_PORT = int(os.environ.get("WEB_PORT", "8080"))
 
 # ✅ Username менеджера (без @) — меняется здесь!
-MANAGER_USERNAME = os.environ.get("MANAGER_USERNAME", "ghjkIz")
+MANAGER_USERNAME = os.environ.get("MANAGER_USERNAME")
 
 # Проверка при загрузке
 if not BOT_TOKEN:
