@@ -5,7 +5,7 @@ from pathlib import Path
 from aiohttp import web
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart
-from aiogram.types import WebAppInfo, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import WebAppInfo, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
 import traceback
 
@@ -67,10 +67,11 @@ dp = Dispatcher(storage=storage)
 setup_admin(ADMIN_ID, bot)
 dp.include_router(admin_router)
 
-START_TEXT = """🛍 PUFFY — твой вейп-шоп в Екб
+START_TEXT = """ PUFFY — твой вейп-шоп в Екб
 
 ✅ Только оригинальная продукция
 ✅ Цены ниже, чем в офлайн-магазинах
+✅ Доставка за 60 минут по городу
 ✅ Скидки постоянным клиентам
 
 ⚠️ 18+"""
@@ -90,13 +91,29 @@ async def cmd_start(message: types.Message):
     try:
         webapp_url = os.environ.get("RENDER_EXTERNAL_URL", f"http://localhost:{WEB_PORT}")
         
-        # ✅ InlineKeyboardMarkup поддерживает и WebApp, и ссылки
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        # ✅ InlineKeyboard — кнопки под стартовым сообщением
+        inline_keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🛍 Открыть каталог", web_app=WebAppInfo(url=webapp_url))],
             [InlineKeyboardButton(text="📞 Связаться с менеджером", url=f"https://t.me/{MANAGER_USERNAME}")]
         ])
         
-        await message.answer(START_TEXT, reply_markup=keyboard)
+        # ✅ ReplyKeyboard — кнопка каталога внизу экрана (остаётся постоянно)
+        reply_keyboard = ReplyKeyboardMarkup(
+            keyboard=[
+                [KeyboardButton(text="🛍 Открыть каталог", web_app=WebAppInfo(url=webapp_url))]
+            ],
+            resize_keyboard=True
+        )
+        
+        # Отправляем стартовое сообщение с inline-кнопками
+        await message.answer(START_TEXT, reply_markup=inline_keyboard)
+        
+        # Отправляем reply-кнопку каталога, которая останется внизу
+        await message.answer(
+            "👇 Используй кнопку ниже для быстрого доступа к каталогу:",
+            reply_markup=reply_keyboard
+        )
+        
         print(f"✅ Приветствие отправлено пользователю {message.from_user.id}")
     except Exception as e:
         print(f"❌ Ошибка отправки приветствия: {e}")
@@ -116,10 +133,10 @@ async def handle_webapp_data(message: types.Message):
             profile_link = f"tg://user?id={user_id}"
             
             order_text = (
-                f"🛒 <b>НОВЫЙ ЗАКАЗ</b>\n\n"
-                f" <b>{user.full_name}</b>\n"
+                f" <b>НОВЫЙ ЗАКАЗ</b>\n\n"
+                f"👤 <b>{user.full_name}</b>\n"
                 f"🆔 ID: <code>{user_id}</code>\n"
-                f"📱 TG: {username_text}\n"
+                f" TG: {username_text}\n"
                 f"🔗 <a href='{profile_link}'>Написать пользователю</a>\n\n"
                 f"📦 <b>Состав:</b>\n"
             )
@@ -130,7 +147,7 @@ async def handle_webapp_data(message: types.Message):
                 total += item_sum
                 order_text += f"• {item['name']} x{item['quantity']} = {item_sum}₽\n"
             
-            order_text += f"\n <b>Итого: {total}₽</b>"
+            order_text += f"\n💰 <b>Итого: {total}₽</b>"
             
             await message.answer("✅ Заказ принят! Менеджер свяжется с вами в ближайшее время.")
             await bot.send_message(ADMIN_ID, order_text, parse_mode="HTML")
@@ -157,4 +174,4 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\n👋 Бот остановлен")
+        print("\n Бот остановлен")
