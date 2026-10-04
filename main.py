@@ -5,11 +5,11 @@ from pathlib import Path
 from aiohttp import web
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart
-from aiogram.types import WebAppInfo, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import WebAppInfo, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
 import traceback
 
-from config import BOT_TOKEN, ADMIN_ID, WEB_PORT
+from config import BOT_TOKEN, ADMIN_ID, WEB_PORT, MANAGER_USERNAME
 from admin import router as admin_router, setup_admin
 from database import init_db, get_categories, get_products, get_products_by_ids, search_products, save_user
 
@@ -67,11 +67,10 @@ dp = Dispatcher(storage=storage)
 setup_admin(ADMIN_ID, bot)
 dp.include_router(admin_router)
 
-START_TEXT = """ PUFFY — твой вейп-шоп в Екб
+START_TEXT = """🛍 PUFFY — твой вейп-шоп в Екб
 
 ✅ Только оригинальная продукция
 ✅ Цены ниже, чем в офлайн-магазинах
-✅ Доставка за 60 минут по городу
 ✅ Скидки постоянным клиентам
 
 ⚠️ 18+"""
@@ -79,25 +78,28 @@ START_TEXT = """ PUFFY — твой вейп-шоп в Екб
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
     print(f"📩 Получен /start от пользователя {message.from_user.id}")
+    
     try:
         username = message.from_user.username or ""
         full_name = message.from_user.full_name or ""
         await save_user(message.from_user.id, username, full_name)
+        print(f"✅ Пользователь {message.from_user.id} сохранён в БД")
     except Exception as e:
         print(f"⚠️ Ошибка сохранения пользователя: {e}")
     
     try:
         webapp_url = os.environ.get("RENDER_EXTERNAL_URL", f"http://localhost:{WEB_PORT}")
-        keyboard = ReplyKeyboardMarkup(
-            keyboard=[
-                [KeyboardButton(text="🛍 Открыть каталог", web_app=WebAppInfo(url=webapp_url))],
-                [KeyboardButton(text="📞 Связаться с менеджером", url="https://t.me/ghjkIz")]
-            ],
-            resize_keyboard=True
-        )
+        
+        # ✅ InlineKeyboard — поддерживает и WebApp, и ссылки
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🛍 Открыть каталог", web_app=WebAppInfo(url=webapp_url))],
+            [InlineKeyboardButton(text="📞 Связаться с менеджером", url=f"https://t.me/{MANAGER_USERNAME}")]
+        ])
+        
         await message.answer(START_TEXT, reply_markup=keyboard)
+        print(f"✅ Приветствие отправлено пользователю {message.from_user.id}")
     except Exception as e:
-        print(f"❌ Ошибка: {e}")
+        print(f"❌ Ошибка отправки приветствия: {e}")
         try:
             await message.answer(START_TEXT)
         except:
@@ -114,10 +116,10 @@ async def handle_webapp_data(message: types.Message):
             profile_link = f"tg://user?id={user_id}"
             
             order_text = (
-                f"🛒 <b>НОВЫЙ ЗАКАЗ</b>\n\n"
-                f"👤 <b>{user.full_name}</b>\n"
+                f" <b>НОВЫЙ ЗАКАЗ</b>\n\n"
+                f" <b>{user.full_name}</b>\n"
                 f"🆔 ID: <code>{user_id}</code>\n"
-                f"📱 TG: {username_text}\n"
+                f" TG: {username_text}\n"
                 f"🔗 <a href='{profile_link}'>Написать пользователю</a>\n\n"
                 f"📦 <b>Состав:</b>\n"
             )
@@ -155,4 +157,4 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\n Бот остановлен")
+        print("\n👋 Бот остановлен")
