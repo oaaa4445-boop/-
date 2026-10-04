@@ -51,10 +51,9 @@ async def api_search(request):
     products = await search_products(query)
     return web.json_response(products)
 
-# ✅ НОВЫЙ ОБРАБОТЧИК ЗАКАЗОВ ЧЕРЕЗ HTTP
 async def handle_order(request):
     print("\n" + "=" * 70)
-    print(" HTTP ЗАКАЗ: получены данные")
+    print("🛒 HTTP ЗАКАЗ: получены данные")
     
     try:
         data = await request.json()
@@ -80,7 +79,7 @@ async def handle_order(request):
     
     order_text = f"🛒 <b>НОВЫЙ ЗАКАЗ</b>\n\n"
     order_text += f"👤 <b>{safe_name}</b>\n"
-    order_text += f" ID: <code>{user_id}</code>\n"
+    order_text += f"🆔 ID: <code>{user_id}</code>\n"
     order_text += f"📱 TG: @{user_username}\n"
     order_text += f"🔗 <a href='{profile_link}'>Написать пользователю</a>\n\n"
     order_text += f"📦 <b>Состав заказа:</b>\n"
@@ -100,18 +99,19 @@ async def handle_order(request):
         order_text += f"   {item_qty} шт × {item_price}₽ = <b>{item_sum}₽</b>\n\n"
     
     order_text += "━━━━━━━━━━━━━━━━━━━━\n"
-    order_text += f"\n <b>ИТОГО: {total}₽</b>\n"
+    order_text += f"\n💰 <b>ИТОГО: {total}₽</b>\n"
     order_text += f"📊 Позиций: {items_count}\n"
     order_text += f"🕐 Время: {data.get('timestamp', 'неизвестно')[:19]}"
     
-    print(f"\n Отправка менеджеру (ADMIN_ID={ADMIN_ID})")
+    print(f"\n📤 Отправка менеджеру (ADMIN_ID={ADMIN_ID})")
     
-    success = True
+    order_sent = False
     error = None
     
     try:
         await bot.send_message(ADMIN_ID, order_text, parse_mode="HTML")
         print(f"✅ Заказ УСПЕШНО отправлен менеджеру!")
+        order_sent = True
     except Exception as e:
         print(f"❌ ОШИБКА отправки менеджеру: {e}")
         try:
@@ -121,15 +121,34 @@ async def handle_order(request):
                 .replace("</a>", "")
             await bot.send_message(ADMIN_ID, plain_text)
             print(f"✅ Заказ отправлен в текстовом формате")
+            order_sent = True
         except Exception as e2:
             print(f"❌ КРИТИЧЕСКАЯ ОШИБКА: {e2}")
-            success = False
             error = str(e2)
+    
+    print(f"\n📤 Отправка подтверждения пользователю (ID: {user_id})")
+    
+    user_message = (
+        f"✅ <b>Заказ оформлен!</b>\n\n"
+        f"Спасибо за покупку, {html_module.escape(user_name)}! 🎉\n\n"
+        f"📦 <b>Ваш заказ:</b>\n"
+        f"• Позиций: {items_count}\n"
+        f"• Сумма: <b>{total}₽</b>\n\n"
+        f"⏳ <b>Ожидайте</b> — менеджер свяжется с вами в ближайшее время для подтверждения и уточнения деталей доставки.\n\n"
+        f"Если у вас есть вопросы, напишите нам: @{MANAGER_USERNAME}"
+    )
+    
+    try:
+        await bot.send_message(user_id, user_message, parse_mode="HTML")
+        print(f"✅ Подтверждение отправлено пользователю!")
+    except Exception as e:
+        print(f"️ Не удалось отправить пользователю: {e}")
+        print(f"💡 Возможно, пользователь не начал диалог с ботом")
     
     print("=" * 70)
     
     return web.json_response({
-        "success": success,
+        "success": order_sent,
         "error": error,
         "total": total,
         "items": items_count
@@ -143,7 +162,7 @@ def create_web_app():
     app.router.add_get("/api/products/{category}", api_products)
     app.router.add_get("/api/products-by-ids", api_products_by_ids)
     app.router.add_get("/api/search", api_search)
-    app.router.add_post("/api/order", handle_order)  # ✅ НОВЫЙ ENDPOINT
+    app.router.add_post("/api/order", handle_order)
     return app
 
 bot = Bot(token=BOT_TOKEN)
@@ -157,9 +176,10 @@ START_TEXT = """🛍 PUFFY — твой вейп-шоп в Екб
 
 ✅ Только оригинальная продукция
 ✅ Цены ниже, чем в офлайн-магазинах
+✅ Доставка за 60 минут по городу
 ✅ Скидки постоянным клиентам
 
-⚠️ 18+"""
+️ 18+"""
 
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
@@ -170,7 +190,7 @@ async def cmd_start(message: types.Message):
         full_name = message.from_user.full_name or ""
         await save_user(message.from_user.id, username, full_name)
     except Exception as e:
-        print(f"⚠️ Ошибка сохранения: {e}")
+        print(f"️ Ошибка сохранения: {e}")
     
     webapp_url = os.environ.get("RENDER_EXTERNAL_URL", f"http://localhost:{WEB_PORT}")
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -180,7 +200,6 @@ async def cmd_start(message: types.Message):
     
     await message.answer(START_TEXT, reply_markup=keyboard)
 
-# Fallback обработчик (если вдруг sendData сработает)
 @dp.message(F.web_app_data)
 async def handle_webapp_data(message: types.Message):
     print("\n" + "=" * 70)
@@ -202,10 +221,10 @@ async def handle_webapp_data(message: types.Message):
         
         order_text = f"🛒 <b>НОВЫЙ ЗАКАЗ</b>\n\n"
         order_text += f"👤 <b>{safe_name}</b>\n"
-        order_text += f" ID: <code>{user_id}</code>\n"
-        order_text += f"📱 TG: @{user_username}\n"
+        order_text += f"🆔 ID: <code>{user_id}</code>\n"
+        order_text += f" TG: @{user_username}\n"
         order_text += f"🔗 <a href='{profile_link}'>Написать пользователю</a>\n\n"
-        order_text += f"📦 <b>Состав заказа:</b>\n"
+        order_text += f" <b>Состав заказа:</b>\n"
         order_text += "━━━━━━━━━━━━━━━━━━━━\n"
         
         total = 0
@@ -222,7 +241,7 @@ async def handle_webapp_data(message: types.Message):
             order_text += f"   {item_qty} шт × {item_price}₽ = <b>{item_sum}₽</b>\n\n"
         
         order_text += "━━━━━━━━━━━━━━━━━━━━\n"
-        order_text += f"\n <b>ИТОГО: {total}₽</b>\n"
+        order_text += f"\n💰 <b>ИТОГО: {total}₽</b>\n"
         order_text += f"📊 Позиций: {items_count}"
         
         try:
@@ -231,7 +250,20 @@ async def handle_webapp_data(message: types.Message):
         except Exception as e:
             print(f"❌ Ошибка отправки: {e}")
         
-        await message.answer("✅ <b>Заказ принят!</b>\n\nМенеджер свяжется с вами в ближайшее время.", parse_mode="HTML")
+        try:
+            user_msg = (
+                f"✅ <b>Заказ оформлен!</b>\n\n"
+                f"Спасибо за покупку, {safe_name}! \n\n"
+                f" <b>Ваш заказ:</b>\n"
+                f"• Позиций: {items_count}\n"
+                f"• Сумма: <b>{total}₽</b>\n\n"
+                f"⏳ <b>Ожидайте</b> — менеджер свяжется с вами в ближайшее время.\n\n"
+                f"Вопросы? @{MANAGER_USERNAME}"
+            )
+            await message.answer(user_msg, parse_mode="HTML")
+            print(f"✅ Подтверждение отправлено пользователю (fallback)")
+        except Exception as e:
+            print(f"⚠️ Не удалось ответить пользователю: {e}")
         
     except Exception as e:
         print(f"❌ Ошибка fallback: {e}")
@@ -248,7 +280,7 @@ async def main():
     site = web.TCPSite(runner, "0.0.0.0", WEB_PORT)
     await site.start()
     print(f"🌐 Веб-сервер: http://0.0.0.0:{WEB_PORT}")
-    print(f"🤖 Бот запущен | Admin ID: {ADMIN_ID}")
+    print(f" Бот запущен | Admin ID: {ADMIN_ID}")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
