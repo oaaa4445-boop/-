@@ -85,7 +85,7 @@ async def cmd_start(message: types.Message):
         await save_user(message.from_user.id, username, full_name)
         print(f"✅ Пользователь {message.from_user.id} сохранён в БД")
     except Exception as e:
-        print(f"⚠️ Ошибка сохранения пользователя: {e}")
+        print(f"️ Ошибка сохранения пользователя: {e}")
     
     try:
         webapp_url = os.environ.get("RENDER_EXTERNAL_URL", f"http://localhost:{WEB_PORT}")
@@ -96,7 +96,7 @@ async def cmd_start(message: types.Message):
             [InlineKeyboardButton(text="📞 Связаться с менеджером", url=f"https://t.me/{MANAGER_USERNAME}")]
         ])
         
-        # ✅ Кнопка каталога, которая останется внизу экрана навсегда
+        # ✅ Reply-кнопка каталога внизу экрана
         reply_keyboard = ReplyKeyboardMarkup(
             keyboard=[
                 [KeyboardButton(text="🛍 Открыть каталог", web_app=WebAppInfo(url=webapp_url))]
@@ -107,8 +107,8 @@ async def cmd_start(message: types.Message):
         # Отправляем стартовое сообщение с inline-кнопками
         await message.answer(START_TEXT, reply_markup=inline_keyboard)
         
-        # Отправляем минимальное сообщение с reply-кнопкой (чтобы она закрепилась внизу)
-        await message.answer(reply_markup=reply_keyboard)
+        # ✅ Невидимый символ — сообщение есть, но визуально пусто
+        await message.answer("\u200B", reply_markup=reply_keyboard)
         
         print(f"✅ Приветствие отправлено пользователю {message.from_user.id}")
     except Exception as e:
