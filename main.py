@@ -51,95 +51,38 @@ async def api_search(request):
     products = await search_products(query)
     return web.json_response(products)
 
-def create_web_app():
-    app = web.Application()
-    app.router.add_get("/", handle_index)
-    app.router.add_get("/static/{filename}", handle_static)
-    app.router.add_get("/api/categories", api_categories)
-    app.router.add_get("/api/products/{category}", api_products)
-    app.router.add_get("/api/products-by-ids", api_products_by_ids)
-    app.router.add_get("/api/search", api_search)
-    return app
-
-bot = Bot(token=BOT_TOKEN)
-storage = MemoryStorage()
-dp = Dispatcher(storage=storage)
-
-setup_admin(ADMIN_ID, bot)
-dp.include_router(admin_router)
-
-START_TEXT = """🛍 PUFFY — твой вейп-шоп в Екб
-
-✅ Только оригинальная продукция
-✅ Цены ниже, чем в офлайн-магазинах
-✅ Доставка за 60 минут по городу
-✅ Скидки постоянным клиентам
-
-⚠️ 18+"""
-
-@dp.message(CommandStart())
-async def cmd_start(message: types.Message):
-    print(f" /start от {message.from_user.id}")
-    
-    try:
-        username = message.from_user.username or ""
-        full_name = message.from_user.full_name or ""
-        await save_user(message.from_user.id, username, full_name)
-    except Exception as e:
-        print(f"⚠️ Ошибка сохранения: {e}")
-    
-    webapp_url = os.environ.get("RENDER_EXTERNAL_URL", f"http://localhost:{WEB_PORT}")
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=" Открыть каталог", web_app=WebAppInfo(url=webapp_url))],
-        [InlineKeyboardButton(text="📞 Связаться с менеджером", url=f"https://t.me/{MANAGER_USERNAME}")]
-    ])
-    
-    await message.answer(START_TEXT, reply_markup=keyboard)
-
-@dp.message(F.web_app_data)
-async def handle_webapp_data(message: types.Message):
+# ✅ НОВЫЙ ОБРАБОТЧИК ЗАКАЗОВ ЧЕРЕЗ HTTP
+async def handle_order(request):
     print("\n" + "=" * 70)
-    print("🛒 ШАГ 1: ПОЛУЧЕНЫ ДАННЫЕ ИЗ WEB APP")
-    print(f"   Пользователь: {message.from_user.id}")
-    print(f"   Имя: {message.from_user.full_name}")
-    print(f"   Username: @{message.from_user.username or 'нет'}")
-    print("=" * 70)
+    print(" HTTP ЗАКАЗ: получены данные")
     
     try:
-        raw_data = message.web_app_data.data
-        print(f"\n🛒 ШАГ 2: Сырые данные ({len(raw_data)} символов):")
-        print(f"   {raw_data[:300]}...")
-        
-        data = json.loads(raw_data)
-        print(f"   ✅ JSON распарсен успешно")
-    except json.JSONDecodeError as e:
-        print(f"   ❌ ОШИБКА ПАРСИНГА JSON: {e}")
-        await message.answer("❌ Ошибка обработки заказа. Попробуйте ещё раз.")
-        return
+        data = await request.json()
+        print(f"📦 Данные: {json.dumps(data, ensure_ascii=False)[:500]}")
     except Exception as e:
-        print(f"   ❌ НЕИЗВЕСТНАЯ ОШИБКА: {e}")
-        await message.answer("❌ Произошла ошибка.")
-        return
+        print(f"❌ Ошибка парсинга JSON: {e}")
+        return web.json_response({"success": False, "error": "Неверный формат данных"}, status=400)
     
     if data.get("type") != "order":
-        print(f"   ⚠️ Неверный тип: {data.get('type')}")
-        return
+        print(f"⚠️ Неверный тип: {data.get('type')}")
+        return web.json_response({"success": False, "error": "Неверный тип"}, status=400)
     
-    print(f"\n🛒 ШАГ 3: Тип заказа подтверждён")
-    print(f"   Позиций: {len(data.get('items', []))}")
-    print(f"   Сумма: {data.get('total')}₽")
+    user_info = data.get("user", {})
+    user_id = user_info.get("id", "неизвестно")
+    user_name = user_info.get("name", "Пользователь")
+    user_username = user_info.get("username", "нет")
     
-    user = message.from_user
-    user_id = user.id
-    username_text = f"@{user.username}" if user.username else "❌ Нет username"
+    print(f"👤 Пользователь: {user_id} ({user_name})")
+    print(f"📱 Username: @{user_username}")
+    
     profile_link = f"tg://user?id={user_id}"
-    safe_name = html_module.escape(user.full_name or "Пользователь")
+    safe_name = html_module.escape(user_name)
     
     order_text = f"🛒 <b>НОВЫЙ ЗАКАЗ</b>\n\n"
-    order_text += f" <b>{safe_name}</b>\n"
-    order_text += f"🆔 ID: <code>{user_id}</code>\n"
-    order_text += f"📱 TG: {username_text}\n"
-    order_text += f" <a href='{profile_link}'>Написать пользователю</a>\n\n"
+    order_text += f"👤 <b>{safe_name}</b>\n"
+    order_text += f" ID: <code>{user_id}</code>\n"
+    order_text += f"📱 TG: @{user_username}\n"
+    order_text += f"🔗 <a href='{profile_link}'>Написать пользователю</a>\n\n"
     order_text += f"📦 <b>Состав заказа:</b>\n"
     order_text += "━━━━━━━━━━━━━━━━━━━━\n"
     
@@ -157,44 +100,143 @@ async def handle_webapp_data(message: types.Message):
         order_text += f"   {item_qty} шт × {item_price}₽ = <b>{item_sum}₽</b>\n\n"
     
     order_text += "━━━━━━━━━━━━━━━━━━━━\n"
-    order_text += f"\n💰 <b>ИТОГО: {total}₽</b>\n"
+    order_text += f"\n <b>ИТОГО: {total}₽</b>\n"
     order_text += f"📊 Позиций: {items_count}\n"
     order_text += f"🕐 Время: {data.get('timestamp', 'неизвестно')[:19]}"
     
-    print(f"\n🛒 ШАГ 5: Сообщение сформировано ({len(order_text)} символов)")
+    print(f"\n Отправка менеджеру (ADMIN_ID={ADMIN_ID})")
     
-    print(f"\n🛒 ШАГ 6: Отправка менеджеру (ADMIN_ID={ADMIN_ID})")
+    success = True
+    error = None
     
     try:
         await bot.send_message(ADMIN_ID, order_text, parse_mode="HTML")
-        print(f"   ✅ Заказ УСПЕШНО отправлен менеджеру!")
+        print(f"✅ Заказ УСПЕШНО отправлен менеджеру!")
     except Exception as e:
-        print(f"   ❌ ОШИБКА отправки менеджеру: {e}")
-        
+        print(f"❌ ОШИБКА отправки менеджеру: {e}")
         try:
             plain_text = order_text.replace("<b>", "").replace("</b>", "") \
                 .replace("<code>", "").replace("</code>", "") \
-                .replace(f"<a href='{profile_link}'>", " ") \
+                .replace(f"<a href='{profile_link}'>", "👉 ") \
                 .replace("</a>", "")
             await bot.send_message(ADMIN_ID, plain_text)
-            print(f"   ✅ Заказ отправлен в текстовом формате (fallback)")
+            print(f"✅ Заказ отправлен в текстовом формате")
         except Exception as e2:
-            print(f"   ❌ КРИТИЧЕСКАЯ ОШИБКА fallback: {e2}")
-    
-    print(f"\n🛒 ШАГ 7: Ответ пользователю")
-    try:
-        await message.answer(
-            "✅ <b>Заказ принят!</b>\n\n"
-            "Менеджер свяжется с вами в ближайшее время.\n"
-            "Спасибо за покупку! ",
-            parse_mode="HTML"
-        )
-        print(f"   ✅ Ответ пользователю отправлен")
-    except Exception as e:
-        print(f"   ⚠️ Не удалось ответить пользователю: {e}")
+            print(f"❌ КРИТИЧЕСКАЯ ОШИБКА: {e2}")
+            success = False
+            error = str(e2)
     
     print("=" * 70)
-    print("🛒 ЗАКАЗ ОБРАБОТАН\n")
+    
+    return web.json_response({
+        "success": success,
+        "error": error,
+        "total": total,
+        "items": items_count
+    })
+
+def create_web_app():
+    app = web.Application()
+    app.router.add_get("/", handle_index)
+    app.router.add_get("/static/{filename}", handle_static)
+    app.router.add_get("/api/categories", api_categories)
+    app.router.add_get("/api/products/{category}", api_products)
+    app.router.add_get("/api/products-by-ids", api_products_by_ids)
+    app.router.add_get("/api/search", api_search)
+    app.router.add_post("/api/order", handle_order)  # ✅ НОВЫЙ ENDPOINT
+    return app
+
+bot = Bot(token=BOT_TOKEN)
+storage = MemoryStorage()
+dp = Dispatcher(storage=storage)
+
+setup_admin(ADMIN_ID, bot)
+dp.include_router(admin_router)
+
+START_TEXT = """🛍 PUFFY — твой вейп-шоп в Екб
+
+✅ Только оригинальная продукция
+✅ Цены ниже, чем в офлайн-магазинах
+✅ Скидки постоянным клиентам
+
+⚠️ 18+"""
+
+@dp.message(CommandStart())
+async def cmd_start(message: types.Message):
+    print(f"📩 /start от {message.from_user.id}")
+    
+    try:
+        username = message.from_user.username or ""
+        full_name = message.from_user.full_name or ""
+        await save_user(message.from_user.id, username, full_name)
+    except Exception as e:
+        print(f"⚠️ Ошибка сохранения: {e}")
+    
+    webapp_url = os.environ.get("RENDER_EXTERNAL_URL", f"http://localhost:{WEB_PORT}")
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🛍 Открыть каталог", web_app=WebAppInfo(url=webapp_url))],
+        [InlineKeyboardButton(text="📞 Связаться с менеджером", url=f"https://t.me/{MANAGER_USERNAME}")]
+    ])
+    
+    await message.answer(START_TEXT, reply_markup=keyboard)
+
+# Fallback обработчик (если вдруг sendData сработает)
+@dp.message(F.web_app_data)
+async def handle_webapp_data(message: types.Message):
+    print("\n" + "=" * 70)
+    print("🛒 FALLBACK: получены данные через web_app_data")
+    
+    try:
+        raw_data = message.web_app_data.data
+        data = json.loads(raw_data)
+        
+        if data.get("type") != "order":
+            return
+        
+        user = message.from_user
+        user_id = user.id
+        user_name = user.full_name or "Пользователь"
+        user_username = user.username or "нет"
+        profile_link = f"tg://user?id={user_id}"
+        safe_name = html_module.escape(user_name)
+        
+        order_text = f"🛒 <b>НОВЫЙ ЗАКАЗ</b>\n\n"
+        order_text += f"👤 <b>{safe_name}</b>\n"
+        order_text += f" ID: <code>{user_id}</code>\n"
+        order_text += f"📱 TG: @{user_username}\n"
+        order_text += f"🔗 <a href='{profile_link}'>Написать пользователю</a>\n\n"
+        order_text += f"📦 <b>Состав заказа:</b>\n"
+        order_text += "━━━━━━━━━━━━━━━━━━━━\n"
+        
+        total = 0
+        items_count = 0
+        for i, item in enumerate(data.get("items", []), 1):
+            item_name = html_module.escape(item.get("name", "Товар"))
+            item_price = item.get("price", 0)
+            item_qty = item.get("quantity", 1)
+            item_sum = item_price * item_qty
+            total += item_sum
+            items_count += 1
+            
+            order_text += f"{i}. {item_name}\n"
+            order_text += f"   {item_qty} шт × {item_price}₽ = <b>{item_sum}₽</b>\n\n"
+        
+        order_text += "━━━━━━━━━━━━━━━━━━━━\n"
+        order_text += f"\n <b>ИТОГО: {total}₽</b>\n"
+        order_text += f"📊 Позиций: {items_count}"
+        
+        try:
+            await bot.send_message(ADMIN_ID, order_text, parse_mode="HTML")
+            print(f"✅ Заказ отправлен менеджеру (fallback)")
+        except Exception as e:
+            print(f"❌ Ошибка отправки: {e}")
+        
+        await message.answer("✅ <b>Заказ принят!</b>\n\nМенеджер свяжется с вами в ближайшее время.", parse_mode="HTML")
+        
+    except Exception as e:
+        print(f"❌ Ошибка fallback: {e}")
+    
+    print("=" * 70)
 
 async def main():
     await init_db()
@@ -213,4 +255,4 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\n Бот остановлен")
+        print("\n👋 Бот остановлен")
