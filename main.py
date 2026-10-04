@@ -67,10 +67,11 @@ dp = Dispatcher(storage=storage)
 setup_admin(ADMIN_ID, bot)
 dp.include_router(admin_router)
 
-START_TEXT = """ PUFFY — твой вейп-шоп в Екб
+START_TEXT = """🛍 PUFFY — твой вейп-шоп в Екб
 
 ✅ Только оригинальная продукция
 ✅ Цены ниже, чем в офлайн-магазинах
+✅ Доставка за 60 минут по городу
 ✅ Скидки постоянным клиентам
 
 ⚠️ 18+"""
@@ -90,13 +91,13 @@ async def cmd_start(message: types.Message):
     try:
         webapp_url = os.environ.get("RENDER_EXTERNAL_URL", f"http://localhost:{WEB_PORT}")
         
-        # ✅ InlineKeyboard — кнопки под стартовым сообщением
+        # ✅ Inline-кнопки под стартовым сообщением
         inline_keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🛍 Открыть каталог", web_app=WebAppInfo(url=webapp_url))],
             [InlineKeyboardButton(text="📞 Связаться с менеджером", url=f"https://t.me/{MANAGER_USERNAME}")]
         ])
         
-        # ✅ ReplyKeyboard — кнопка каталога внизу экрана (остаётся постоянно)
+        # ✅ Кнопка каталога, которая останется внизу экрана навсегда
         reply_keyboard = ReplyKeyboardMarkup(
             keyboard=[
                 [KeyboardButton(text="🛍 Открыть каталог", web_app=WebAppInfo(url=webapp_url))]
@@ -106,7 +107,9 @@ async def cmd_start(message: types.Message):
         
         # Отправляем стартовое сообщение с inline-кнопками
         await message.answer(START_TEXT, reply_markup=inline_keyboard)
-        )
+        
+        # Отправляем минимальное сообщение с reply-кнопкой (чтобы она закрепилась внизу)
+        await message.answer("🛍", reply_markup=reply_keyboard)
         
         print(f"✅ Приветствие отправлено пользователю {message.from_user.id}")
     except Exception as e:
@@ -127,10 +130,10 @@ async def handle_webapp_data(message: types.Message):
             profile_link = f"tg://user?id={user_id}"
             
             order_text = (
-                f" <b>НОВЫЙ ЗАКАЗ</b>\n\n"
+                f"🛒 <b>НОВЫЙ ЗАКАЗ</b>\n\n"
                 f"👤 <b>{user.full_name}</b>\n"
                 f"🆔 ID: <code>{user_id}</code>\n"
-                f" TG: {username_text}\n"
+                f"📱 TG: {username_text}\n"
                 f"🔗 <a href='{profile_link}'>Написать пользователю</a>\n\n"
                 f"📦 <b>Состав:</b>\n"
             )
@@ -168,4 +171,4 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\n Бот остановлен")
+        print("\n👋 Бот остановлен")
