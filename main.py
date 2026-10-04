@@ -9,7 +9,7 @@ from aiogram.types import WebAppInfo, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
 import traceback
 
-from config import BOT_TOKEN, ADMIN_ID, WEB_PORT, MANAGER_USERNAME, MANAGER_ID
+from config import BOT_TOKEN, ADMIN_ID, WEB_PORT, MANAGER_USERNAME
 from admin import router as admin_router, setup_admin
 from database import init_db, get_categories, get_products, get_products_by_ids, search_products, save_user
 
@@ -97,12 +97,8 @@ async def cmd_start(message: types.Message):
 
 @dp.message(F.web_app_data)
 async def handle_webapp_data(message: types.Message):
-    print(f"📦 Получены данные из Web App от пользователя {message.from_user.id}")
-    
     try:
         data = json.loads(message.web_app_data.data)
-        print(f"📋 Данные заказа: {data}")
-        
         if data.get("type") == "order":
             user = message.from_user
             username_text = f"@{user.username}" if user.username else "Нет юзернейма"
@@ -112,10 +108,10 @@ async def handle_webapp_data(message: types.Message):
             order_text = (
                 f"🛒 <b>НОВЫЙ ЗАКАЗ</b>\n\n"
                 f"👤 <b>{user.full_name}</b>\n"
-                f"🆔 ID: <code>{user_id}</code>\n"
+                f" ID: <code>{user_id}</code>\n"
                 f"📱 TG: {username_text}\n"
                 f"🔗 <a href='{profile_link}'>Написать пользователю</a>\n\n"
-                f"📦 <b>Состав:</b>\n"
+                f" <b>Состав:</b>\n"
             )
             
             total = 0
@@ -126,25 +122,12 @@ async def handle_webapp_data(message: types.Message):
             
             order_text += f"\n💰 <b>Итого: {total}₽</b>"
             
-            # ✅ Отправляем пользователю подтверждение
             await message.answer("✅ Заказ принят! Менеджер свяжется с вами в ближайшее время.")
-            
-            # ✅ Отправляем заказ менеджеру (если MANAGER_ID задан) или админу
-            recipient_id = MANAGER_ID if MANAGER_ID else ADMIN_ID
-            print(f"📤 Отправляем заказ пользователю ID: {recipient_id}")
-            
-            await bot.send_message(recipient_id, order_text, parse_mode="HTML")
-            print(f"✅ Заказ на {total}₽ отправлен")
-            
-            # ✅ Если MANAGER_ID и ADMIN_ID разные - отправляем обоим
-            if MANAGER_ID and MANAGER_ID != ADMIN_ID:
-                await bot.send_message(ADMIN_ID, order_text, parse_mode="HTML")
-                print(f"✅ Копия заказа отправлена админу ID: {ADMIN_ID}")
-                
+            await bot.send_message(ADMIN_ID, order_text, parse_mode="HTML")
+            print(f"✅ Заказ на {total}₽ от пользователя {user_id} отправлен админу")
     except Exception as e:
-        print(f"❌ Ошибка обработки заказа: {e}")
+        print(f" Ошибка обработки заказа: {e}")
         traceback.print_exc()
-        await message.answer("❌ Произошла ошибка при обработке заказа. Попробуйте ещё раз.")
 
 async def main():
     await init_db()
@@ -155,18 +138,13 @@ async def main():
     await runner.setup()
     site = web.TCPSite(runner, "0.0.0.0", WEB_PORT)
     await site.start()
-    print(f" Веб-сервер запущен: http://0.0.0.0:{WEB_PORT}")
+    print(f"🌐 Веб-сервер запущен: http://0.0.0.0:{WEB_PORT}")
     
-    print(f"🤖 Бот запущен... Admin ID: {ADMIN_ID}")
-    if MANAGER_ID:
-        print(f" Менеджер ID: {MANAGER_ID}")
-    else:
-        print(f"️ MANAGER_ID не задан - заказы будут идти админу")
-    
+    print(f" Бот запущен... Admin ID: {ADMIN_ID}")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\n Бот остановлен")
+        print("\n👋 Бот остановлен")
