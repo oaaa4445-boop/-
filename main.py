@@ -71,7 +71,6 @@ START_TEXT = """ PUFFY — твой вейп-шоп в Екб
 
 ✅ Только оригинальная продукция
 ✅ Цены ниже, чем в офлайн-магазинах
-✅ Доставка за 60 минут по городу
 ✅ Скидки постоянным клиентам
 
 ⚠️ 18+"""
@@ -107,11 +106,6 @@ async def cmd_start(message: types.Message):
         
         # Отправляем стартовое сообщение с inline-кнопками
         await message.answer(START_TEXT, reply_markup=inline_keyboard)
-        
-        # Отправляем reply-кнопку каталога, которая останется внизу
-        await message.answer(
-            "👇 Используй кнопку ниже для быстрого доступа к каталогу:",
-            reply_markup=reply_keyboard
         )
         
         print(f"✅ Приветствие отправлено пользователю {message.from_user.id}")
