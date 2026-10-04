@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import html
 from pathlib import Path
 from aiohttp import web
 from aiogram import Bot, Dispatcher, types, F
@@ -67,7 +68,7 @@ dp = Dispatcher(storage=storage)
 setup_admin(ADMIN_ID, bot)
 dp.include_router(admin_router)
 
-START_TEXT = """ PUFFY — твой вейп-шоп в Екб
+START_TEXT = """🛍 PUFFY — твой вейп-шоп в Екб
 
 ✅ Только оригинальная продукция
 ✅ Цены ниже, чем в офлайн-магазинах
@@ -75,12 +76,10 @@ START_TEXT = """ PUFFY — твой вейп-шоп в Екб
 
 ⚠️ 18+"""
 
-# ✅ ЕДИНСТВЕННЫЙ обработчик /start — без дублирования!
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
-    print(f" Получен /start от пользователя {message.from_user.id}")
+    print(f"📩 Получен /start от пользователя {message.from_user.id}")
     
-    # 1. Сохраняем пользователя
     try:
         username = message.from_user.username or ""
         full_name = message.from_user.full_name or ""
@@ -88,50 +87,98 @@ async def cmd_start(message: types.Message):
     except Exception as e:
         print(f"⚠️ Ошибка сохранения: {e}")
     
-    # 2. Формируем клавиатуру
-    webapp_url = os.environ.get("RENDER_EXTERNAL_URL", f"http://localhost:{WEB_PORT}")
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🛍 Открыть каталог", web_app=WebAppInfo(url=webapp_url))],
-        [InlineKeyboardButton(text=" Связаться с менеджером", url=f"https://t.me/{MANAGER_USERNAME}")]
-    ])
-    
-    # 3. Отправляем ОДНО сообщение с клавиатурой
-    await message.answer(START_TEXT, reply_markup=keyboard)
-    print(f"✅ Приветствие отправлено пользователю {message.from_user.id}")
+    try:
+        webapp_url = os.environ.get("RENDER_EXTERNAL_URL", f"http://localhost:{WEB_PORT}")
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=" Открыть каталог", web_app=WebAppInfo(url=webapp_url))],
+            [InlineKeyboardButton(text="📞 Связаться с менеджером", url=f"https://t.me/{MANAGER_USERNAME}")]
+        ])
+        await message.answer(START_TEXT, reply_markup=keyboard)
+        print(f"✅ Приветствие отправлено пользователю {message.from_user.id}")
+    except Exception as e:
+        print(f"❌ Ошибка отправки приветствия: {e}")
 
+# ✅ ИСПРАВЛЕННЫЙ обработчик заказов
 @dp.message(F.web_app_data)
 async def handle_webapp_data(message: types.Message):
+    print(f" Получены данные из Web App от пользователя {message.from_user.id}")
+    
     try:
-        data = json.loads(message.web_app_data.data)
-        if data.get("type") == "order":
-            user = message.from_user
-            username_text = f"@{user.username}" if user.username else "Нет юзернейма"
-            user_id = user.id
-            profile_link = f"tg://user?id={user_id}"
-            
-            order_text = (
-                f"🛒 <b>НОВЫЙ ЗАКАЗ</b>\n\n"
-                f"👤 <b>{user.full_name}</b>\n"
-                f"🆔 ID: <code>{user_id}</code>\n"
-                f"📱 TG: {username_text}\n"
-                f" <a href='{profile_link}'>Написать пользователю</a>\n\n"
-                f"📦 <b>Состав:</b>\n"
-            )
-            
-            total = 0
-            for item in data["items"]:
-                item_sum = item["price"] * item["quantity"]
-                total += item_sum
-                order_text += f"• {item['name']} x{item['quantity']} = {item_sum}₽\n"
-            
-            order_text += f"\n💰 <b>Итого: {total}₽</b>"
-            
-            await message.answer("✅ Заказ принят! Менеджер свяжется с вами в ближайшее время.")
+        # Парсим данные
+        raw_data = message.web_app_data.data
+        print(f"📋 Сырые данные: {raw_data}")
+        
+        data = json.loads(raw_data)
+        
+        if data.get("type") != "order":
+            print(f"⚠️ Неверный тип данных: {data.get('type')}")
+            await message.answer("❌ Неверный формат данных")
+            return
+        
+        user = message.from_user
+        items = data.get("items", [])
+        total = data.get("total", 0)
+        user_id_from_app = data.get("user_id")
+        
+        print(f" Товаров в заказе: {len(items)}, Сумма: {total}")
+        
+        if not items:
+            await message.answer(" Корзина пуста")
+            return
+        
+        # ✅ ЭКРАНИРУЕМ все пользовательские данные для HTML
+        user_name_safe = html.escape(user.full_name or "Пользователь")
+        username_text = f"@{html.escape(user.username)}" if user.username else "Нет юзернейма"
+        profile_link = f"tg://user?id={user.id}"
+        
+        # Формируем текст заказа
+        order_lines = [
+            f" <b>НОВЫЙ ЗАКАЗ</b>\n",
+            f"👤 <b>{user_name_safe}</b>",
+            f"🆔 ID: <code>{user.id}</code>",
+            f"📱 TG: {username_text}",
+            f"🔗 <a href='{profile_link}'>Написать пользователю</a>\n",
+            f"📦 <b>Состав:</b>"
+        ]
+        
+        for item in items:
+            item_name = html.escape(str(item.get("name", "Товар")))
+            item_price = item.get("price", 0)
+            item_qty = item.get("quantity", 1)
+            item_sum = item_price * item_qty
+            order_lines.append(f"• {item_name} x{item_qty} = {int(item_sum)}₽")
+        
+        order_lines.append(f"\n💰 <b>Итого: {int(total)}₽</b>")
+        
+        order_text = "\n".join(order_lines)
+        
+        print(f"📝 Текст заказа:\n{order_text}")
+        
+        # ✅ Сначала отвечаем пользователю
+        await message.answer("✅ Заказ принят! Менеджер свяжется с вами в ближайшее время.")
+        
+        # ✅ Потом отправляем админу (с обработкой ошибок)
+        try:
             await bot.send_message(ADMIN_ID, order_text, parse_mode="HTML")
-            print(f"✅ Заказ на {total}₽ от пользователя {user_id} отправлен админу")
+            print(f"✅ Заказ отправлен админу (ID: {ADMIN_ID})")
+        except Exception as admin_err:
+            print(f"❌ Ошибка отправки админу: {admin_err}")
+            # Fallback: отправляем без HTML
+            try:
+                plain_text = order_text.replace("<b>", "").replace("</b>", "").replace("<code>", "").replace("</code>", "").replace("<a href='", "").replace("'>", ": ").replace("</a>", "")
+                await bot.send_message(ADMIN_ID, plain_text)
+                print(f"✅ Заказ отправлен админу в текстовом формате")
+            except Exception as plain_err:
+                print(f"❌❌ Критическая ошибка отправки админу: {plain_err}")
+                await message.answer("⚠️ Заказ сохранён, но произошла ошибка при уведомлении менеджера. Мы свяжемся с вами!")
+        
+    except json.JSONDecodeError as e:
+        print(f"❌ Ошибка парсинга JSON: {e}")
+        await message.answer("❌ Ошибка обработки данных заказа")
     except Exception as e:
-        print(f"❌ Ошибка обработки заказа: {e}")
+        print(f"❌ Критическая ошибка: {e}")
         traceback.print_exc()
+        await message.answer("❌ Произошла ошибка. Попробуйте ещё раз или свяжитесь с менеджером.")
 
 async def main():
     await init_db()
@@ -144,7 +191,8 @@ async def main():
     await site.start()
     print(f"🌐 Веб-сервер запущен: http://0.0.0.0:{WEB_PORT}")
     
-    print(f"🤖 Бот запущен... Admin ID: {ADMIN_ID}")
+    print(f"🤖 Бот запущен... Admin ID: {ADMIN_ID} (тип: {type(ADMIN_ID).__name__})")
+    print(f"📞 Manager username: @{MANAGER_USERNAME}")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
