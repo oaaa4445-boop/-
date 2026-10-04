@@ -1,23 +1,172 @@
+import asyncio
+import json
 import os
+from pathlib import Path
+from aiohttp import web
+from aiogram import Bot, Dispatcher, types, F
+from aiogram.filters import CommandStart
+from aiogram.types import WebAppInfo, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.fsm.storage.memory import MemoryStorage
+import traceback
 
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-ADMIN_ID = int(os.environ.get("ADMIN_ID", "0"))
-WEB_PORT = int(os.environ.get("WEB_PORT", "8080"))
+from config import BOT_TOKEN, ADMIN_ID, WEB_PORT, MANAGER_USERNAME, MANAGER_ID
+from admin import router as admin_router, setup_admin
+from database import init_db, get_categories, get_products, get_products_by_ids, search_products, save_user
 
-# Username менеджера (без @) - для кнопки "Связаться с менеджером"
-MANAGER_USERNAME = os.environ.get("MANAGER_USERNAME")
+WEBAPP_DIR = Path(__file__).parent / "webapp"
 
-# ✅ Числовой ID менеджера - туда будут приходить заказы
-# Узнать через @userinfobot в Telegram
-MANAGER_ID = int(os.environ.get("MANAGER_ID", "0"))
+async def handle_index(request):
+    with open(WEBAPP_DIR / "index.html", "r", encoding="utf-8") as f:
+        return web.Response(text=f.read(), content_type="text/html")
 
-# Проверка при загрузке
-if not BOT_TOKEN:
-    raise ValueError("❌ BOT_TOKEN не задан в переменных окружения!")
-if ADMIN_ID == 0:
-    raise ValueError("❌ ADMIN_ID не задан в переменных окружения!")
+async def handle_static(request):
+    filename = request.match_info["filename"]
+    file_path = WEBAPP_DIR / filename
+    if file_path.exists():
+        return web.FileResponse(file_path)
+    return web.Response(status=404)
 
-print(f"✅ Конфиг загружен:")
-print(f"   ADMIN_ID = {ADMIN_ID}")
-print(f"   MANAGER_USERNAME = @{MANAGER_USERNAME}")
-print(f"   MANAGER_ID = {MANAGER_ID if MANAGER_ID else 'не задан (заказы пойдут админу)'}")
+async def api_categories(request):
+    return web.json_response(await get_categories())
+
+async def api_products(request):
+    return web.json_response(await get_products(request.match_info["category"]))
+
+async def api_products_by_ids(request):
+    ids_str = request.query.get("ids", "")
+    if not ids_str:
+        return web.json_response([])
+    try:
+        ids = [int(x.strip()) for x in ids_str.split(",") if x.strip()]
+        products = await get_products_by_ids(ids)
+        return web.json_response(products)
+    except (ValueError, TypeError):
+        return web.json_response([])
+
+async def api_search(request):
+    query = request.query.get("q", "").strip()
+    if not query or len(query) < 2:
+        return web.json_response([])
+    products = await search_products(query)
+    return web.json_response(products)
+
+def create_web_app():
+    app = web.Application()
+    app.router.add_get("/", handle_index)
+    app.router.add_get("/static/{filename}", handle_static)
+    app.router.add_get("/api/categories", api_categories)
+    app.router.add_get("/api/products/{category}", api_products)
+    app.router.add_get("/api/products-by-ids", api_products_by_ids)
+    app.router.add_get("/api/search", api_search)
+    return app
+
+bot = Bot(token=BOT_TOKEN)
+storage = MemoryStorage()
+dp = Dispatcher(storage=storage)
+
+setup_admin(ADMIN_ID, bot)
+dp.include_router(admin_router)
+
+START_TEXT = """🛍 PUFFY — твой вейп-шоп в Екб
+
+✅ Только оригинальная продукция
+✅ Цены ниже, чем в офлайн-магазинах
+✅ Скидки постоянным клиентам
+
+⚠️ 18+"""
+
+@dp.message(CommandStart())
+async def cmd_start(message: types.Message):
+    print(f"📩 Получен /start от пользователя {message.from_user.id}")
+    
+    try:
+        username = message.from_user.username or ""
+        full_name = message.from_user.full_name or ""
+        await save_user(message.from_user.id, username, full_name)
+    except Exception as e:
+        print(f"⚠️ Ошибка сохранения: {e}")
+    
+    webapp_url = os.environ.get("RENDER_EXTERNAL_URL", f"http://localhost:{WEB_PORT}")
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🛍 Открыть каталог", web_app=WebAppInfo(url=webapp_url))],
+        [InlineKeyboardButton(text="📞 Связаться с менеджером", url=f"https://t.me/{MANAGER_USERNAME}")]
+    ])
+    
+    await message.answer(START_TEXT, reply_markup=keyboard)
+    print(f"✅ Приветствие отправлено пользователю {message.from_user.id}")
+
+@dp.message(F.web_app_data)
+async def handle_webapp_data(message: types.Message):
+    print(f"📦 Получены данные из Web App от пользователя {message.from_user.id}")
+    
+    try:
+        data = json.loads(message.web_app_data.data)
+        print(f"📋 Данные заказа: {data}")
+        
+        if data.get("type") == "order":
+            user = message.from_user
+            username_text = f"@{user.username}" if user.username else "Нет юзернейма"
+            user_id = user.id
+            profile_link = f"tg://user?id={user_id}"
+            
+            order_text = (
+                f"🛒 <b>НОВЫЙ ЗАКАЗ</b>\n\n"
+                f"👤 <b>{user.full_name}</b>\n"
+                f"🆔 ID: <code>{user_id}</code>\n"
+                f"📱 TG: {username_text}\n"
+                f"🔗 <a href='{profile_link}'>Написать пользователю</a>\n\n"
+                f"📦 <b>Состав:</b>\n"
+            )
+            
+            total = 0
+            for item in data["items"]:
+                item_sum = item["price"] * item["quantity"]
+                total += item_sum
+                order_text += f"• {item['name']} x{item['quantity']} = {item_sum}₽\n"
+            
+            order_text += f"\n💰 <b>Итого: {total}₽</b>"
+            
+            # ✅ Отправляем пользователю подтверждение
+            await message.answer("✅ Заказ принят! Менеджер свяжется с вами в ближайшее время.")
+            
+            # ✅ Отправляем заказ менеджеру (если MANAGER_ID задан) или админу
+            recipient_id = MANAGER_ID if MANAGER_ID else ADMIN_ID
+            print(f"📤 Отправляем заказ пользователю ID: {recipient_id}")
+            
+            await bot.send_message(recipient_id, order_text, parse_mode="HTML")
+            print(f"✅ Заказ на {total}₽ отправлен")
+            
+            # ✅ Если MANAGER_ID и ADMIN_ID разные - отправляем обоим
+            if MANAGER_ID and MANAGER_ID != ADMIN_ID:
+                await bot.send_message(ADMIN_ID, order_text, parse_mode="HTML")
+                print(f"✅ Копия заказа отправлена админу ID: {ADMIN_ID}")
+                
+    except Exception as e:
+        print(f"❌ Ошибка обработки заказа: {e}")
+        traceback.print_exc()
+        await message.answer("❌ Произошла ошибка при обработке заказа. Попробуйте ещё раз.")
+
+async def main():
+    await init_db()
+    print("✅ База данных PostgreSQL готова")
+    
+    web_app = create_web_app()
+    runner = web.AppRunner(web_app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", WEB_PORT)
+    await site.start()
+    print(f" Веб-сервер запущен: http://0.0.0.0:{WEB_PORT}")
+    
+    print(f"🤖 Бот запущен... Admin ID: {ADMIN_ID}")
+    if MANAGER_ID:
+        print(f" Менеджер ID: {MANAGER_ID}")
+    else:
+        print(f"️ MANAGER_ID не задан - заказы будут идти админу")
+    
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\n Бот остановлен")
