@@ -55,7 +55,6 @@
         .add-to-cart-btn:active { transform: scale(0.95); box-shadow: 0 0 30px rgba(176, 38, 255, 0.7); }
         .remove-fav-btn { background: linear-gradient(135deg, #ff2d95, #ff006e); color: #fff; box-shadow: 0 0 20px rgba(255, 45, 149, 0.4); }
         
-        /* СТРАНИЦА ТОВАРА */
         .product-detail-container { padding: 0; }
         .product-detail-image {
             width: 100%;
@@ -198,9 +197,9 @@
 <body>
     <div id="home-page" class="page active">
         <div class="header">
-            <div class="search-bar"><span></span><input type="text" placeholder="Поиск товаров" id="search-input"></div>
+            <div class="search-bar"><span>🔍</span><input type="text" placeholder="Поиск товаров" id="search-input"></div>
             <div class="header-actions">
-                <div class="profile-btn" onclick="showProfile()"><span>👤</span></div>
+                <div class="profile-btn" onclick="showProfile()"><span></span></div>
                 <div class="cart-btn-main" onclick="showCart()"><span>🛒</span><span>Корзина</span></div>
             </div>
         </div>
@@ -231,7 +230,7 @@
     </div>
 
     <div id="cart-page" class="page">
-        <div class="top-bar"><button class="back-btn" onclick="goHome()">← Назад</button><h2>🛒 Корзина</h2></div>
+        <div class="top-bar"><button class="back-btn" onclick="goHome()">← Назад</button><h2> Корзина</h2></div>
         <div id="cart-items"><div class="empty-cart">Корзина пуста</div></div>
         <div class="cart-footer">
             <div class="cart-total">Итого: <span id="total-price">0</span> ₽</div>
@@ -382,7 +381,7 @@
                     let title = 'В наличии:';
                     let emoji = '📦';
                     if (flavorsType === 'Вкусы') { title = 'Вкусы в наличии:'; emoji = '🍓'; }
-                    else if (flavorsType === 'Цвета') { title = 'Цвета в наличии:'; emoji = '🎨'; }
+                    else if (flavorsType === 'Цвета') { title = 'Цвета в наличии:'; emoji = ''; }
                     else if (flavorsType === 'Характеристики') { title = 'Характеристики:'; emoji = '⚙️'; }
                     else if (flavorsType === 'Размеры') { title = 'Размеры в наличии:'; emoji = '📏'; }
                     
@@ -395,13 +394,13 @@
                     flavorsHtml = '<div class="product-detail-flavors"><div class="product-detail-flavors-title">📦 В наличии</div><div class="no-flavors">Не указано</div></div>';
                 }
             } else {
-                flavorsHtml = '<div class="product-detail-flavors"><div class="product-detail-flavors-title"> В наличии</div><div class="no-flavors">Не указано</div></div>';
+                flavorsHtml = '<div class="product-detail-flavors"><div class="product-detail-flavors-title">📦 В наличии</div><div class="no-flavors">Не указано</div></div>';
             }
             
             const hasImage = image && image.length > 5 && image.startsWith('http');
             const imageHtml = hasImage 
                 ? '<img src="' + image + '" alt="' + name + '">'
-                : '<div class="img-fallback">📦</div>';
+                : '<div class="img-fallback"></div>';
             
             const safeName = name.replace(/'/g, "\\'");
             const safeImage = (image || '').replace(/'/g, "\\'");
@@ -500,7 +499,7 @@
 
         function clearCart() {
             if (cart.length === 0) { showToast('🛒 Корзина уже пуста'); return; }
-            if (confirm('Очистить корзину?')) { cart = []; saveCartToStorage(); showCart(); showToast('🗑 Корзина очищена'); }
+            if (confirm('Очистить корзину?')) { cart = []; saveCartToStorage(); showCart(); showToast(' Корзина очищена'); }
         }
 
         function updateTotal() {
@@ -508,15 +507,60 @@
         }
 
         function checkout() {
-            if (cart.length === 0) { showToast('🛒 Корзина пуста'); return; }
+            if (cart.length === 0) { 
+                showToast(' Корзина пуста'); 
+                return; 
+            }
+            
+            if (!tg || !tg.sendData) {
+                showToast('❌ Откройте через Telegram');
+                console.error('❌ tg.sendData недоступен');
+                return;
+            }
+            
             const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-            const data = { type: 'order', items: cart, total: total, user_id: tgUser ? tgUser.id : null };
-            if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-            orders.push({ date: new Date().toISOString(), items: JSON.parse(JSON.stringify(cart)), total: total });
+            
+            const orderData = {
+                type: 'order',
+                items: cart.map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    price: item.price,
+                    quantity: item.quantity,
+                    image: item.image || ''
+                })),
+                total: total,
+                user_id: tgUser ? tgUser.id : null,
+                timestamp: new Date().toISOString()
+            };
+            
+            console.log('📦 Данные заказа:', orderData);
+            
+            showToast('✅ Заказ оформлен!');
+            
+            orders.push({ 
+                date: new Date().toISOString(), 
+                items: JSON.parse(JSON.stringify(cart)), 
+                total: total 
+            });
             saveOrdersToStorage();
+            
+            if (tg.HapticFeedback) {
+                tg.HapticFeedback.notificationOccurred('success');
+            }
+            
             cart = [];
             saveCartToStorage();
-            tg.sendData(JSON.stringify(data));
+            
+            try {
+                const jsonString = JSON.stringify(orderData);
+                console.log('📤 Отправляю через sendData:', jsonString);
+                tg.sendData(jsonString);
+                console.log('✅ sendData выполнен');
+            } catch (e) {
+                console.error('❌ Ошибка sendData:', e);
+                showToast('❌ Ошибка отправки');
+            }
         }
 
         function showProfile() {
@@ -541,14 +585,14 @@
             showPage('profile-page');
         }
 
-        function openSupport() { if (tg.openTelegramLink) tg.openTelegramLink('https://t.me/' + MANAGER_USERNAME); else showToast('💬 @' + MANAGER_USERNAME); }
+        function openSupport() { if (tg.openTelegramLink) tg.openTelegramLink('https://t.me/' + MANAGER_USERNAME); else showToast(' @' + MANAGER_USERNAME); }
         function showAbout() { showToast('ℹ️ PUFFY — curated vape & hookah shop'); }
 
         function toggleFavorite(id, element, event) {
             event.stopPropagation();
             const idx = favorites.indexOf(id);
             if (idx === -1) { favorites.push(id); element.textContent = '❤️'; showToast('❤️ Добавлено в избранное'); }
-            else { favorites.splice(idx, 1); element.textContent = '🤍'; showToast('Удалено из избранного'); }
+            else { favorites.splice(idx, 1); element.textContent = ''; showToast('Удалено из избранного'); }
             saveFavoritesToStorage();
         }
 
