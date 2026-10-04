@@ -90,7 +90,7 @@ async def cmd_start(message: types.Message):
     try:
         webapp_url = os.environ.get("RENDER_EXTERNAL_URL", f"http://localhost:{WEB_PORT}")
         
-        # ✅ InlineKeyboard — поддерживает и WebApp, и ссылки
+        # ✅ InlineKeyboardMarkup поддерживает и WebApp, и ссылки
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🛍 Открыть каталог", web_app=WebAppInfo(url=webapp_url))],
             [InlineKeyboardButton(text="📞 Связаться с менеджером", url=f"https://t.me/{MANAGER_USERNAME}")]
@@ -116,10 +116,10 @@ async def handle_webapp_data(message: types.Message):
             profile_link = f"tg://user?id={user_id}"
             
             order_text = (
-                f" <b>НОВЫЙ ЗАКАЗ</b>\n\n"
+                f"🛒 <b>НОВЫЙ ЗАКАЗ</b>\n\n"
                 f" <b>{user.full_name}</b>\n"
                 f"🆔 ID: <code>{user_id}</code>\n"
-                f" TG: {username_text}\n"
+                f"📱 TG: {username_text}\n"
                 f"🔗 <a href='{profile_link}'>Написать пользователю</a>\n\n"
                 f"📦 <b>Состав:</b>\n"
             )
@@ -130,7 +130,7 @@ async def handle_webapp_data(message: types.Message):
                 total += item_sum
                 order_text += f"• {item['name']} x{item['quantity']} = {item_sum}₽\n"
             
-            order_text += f"\n💰 <b>Итого: {total}₽</b>"
+            order_text += f"\n <b>Итого: {total}₽</b>"
             
             await message.answer("✅ Заказ принят! Менеджер свяжется с вами в ближайшее время.")
             await bot.send_message(ADMIN_ID, order_text, parse_mode="HTML")
