@@ -5,7 +5,7 @@ from pathlib import Path
 from aiohttp import web
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart
-from aiogram.types import WebAppInfo, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import WebAppInfo, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
 import traceback
 
@@ -67,7 +67,7 @@ dp = Dispatcher(storage=storage)
 setup_admin(ADMIN_ID, bot)
 dp.include_router(admin_router)
 
-START_TEXT = """🛍 PUFFY — твой вейп-шоп в Екб
+START_TEXT = """ PUFFY — твой вейп-шоп в Екб
 
 ✅ Только оригинальная продукция
 ✅ Цены ниже, чем в офлайн-магазинах
@@ -75,48 +75,29 @@ START_TEXT = """🛍 PUFFY — твой вейп-шоп в Екб
 
 ⚠️ 18+"""
 
+# ✅ ЕДИНСТВЕННЫЙ обработчик /start — без дублирования!
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
-    print(f"📩 Получен /start от пользователя {message.from_user.id}")
+    print(f" Получен /start от пользователя {message.from_user.id}")
     
+    # 1. Сохраняем пользователя
     try:
         username = message.from_user.username or ""
         full_name = message.from_user.full_name or ""
         await save_user(message.from_user.id, username, full_name)
-        print(f"✅ Пользователь {message.from_user.id} сохранён в БД")
     except Exception as e:
-        print(f"️ Ошибка сохранения пользователя: {e}")
+        print(f"⚠️ Ошибка сохранения: {e}")
     
-    try:
-        webapp_url = os.environ.get("RENDER_EXTERNAL_URL", f"http://localhost:{WEB_PORT}")
-        
-        # ✅ Inline-кнопки под стартовым сообщением
-        inline_keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🛍 Открыть каталог", web_app=WebAppInfo(url=webapp_url))],
-            [InlineKeyboardButton(text="📞 Связаться с менеджером", url=f"https://t.me/{MANAGER_USERNAME}")]
-        ])
-        
-        # ✅ Reply-кнопка каталога внизу экрана
-        reply_keyboard = ReplyKeyboardMarkup(
-            keyboard=[
-                [KeyboardButton(text="🛍 Открыть каталог", web_app=WebAppInfo(url=webapp_url))]
-            ],
-            resize_keyboard=True
-        )
-        
-        # Отправляем стартовое сообщение с inline-кнопками
-        await message.answer(START_TEXT, reply_markup=inline_keyboard)
-        
-        # ✅ Невидимый символ — сообщение есть, но визуально пусто
-        await message.answer("\u200B", reply_markup=reply_keyboard)
-        
-        print(f"✅ Приветствие отправлено пользователю {message.from_user.id}")
-    except Exception as e:
-        print(f"❌ Ошибка отправки приветствия: {e}")
-        try:
-            await message.answer(START_TEXT)
-        except:
-            pass
+    # 2. Формируем клавиатуру
+    webapp_url = os.environ.get("RENDER_EXTERNAL_URL", f"http://localhost:{WEB_PORT}")
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🛍 Открыть каталог", web_app=WebAppInfo(url=webapp_url))],
+        [InlineKeyboardButton(text=" Связаться с менеджером", url=f"https://t.me/{MANAGER_USERNAME}")]
+    ])
+    
+    # 3. Отправляем ОДНО сообщение с клавиатурой
+    await message.answer(START_TEXT, reply_markup=keyboard)
+    print(f"✅ Приветствие отправлено пользователю {message.from_user.id}")
 
 @dp.message(F.web_app_data)
 async def handle_webapp_data(message: types.Message):
@@ -133,7 +114,7 @@ async def handle_webapp_data(message: types.Message):
                 f"👤 <b>{user.full_name}</b>\n"
                 f"🆔 ID: <code>{user_id}</code>\n"
                 f"📱 TG: {username_text}\n"
-                f"🔗 <a href='{profile_link}'>Написать пользователю</a>\n\n"
+                f" <a href='{profile_link}'>Написать пользователю</a>\n\n"
                 f"📦 <b>Состав:</b>\n"
             )
             
@@ -163,7 +144,7 @@ async def main():
     await site.start()
     print(f"🌐 Веб-сервер запущен: http://0.0.0.0:{WEB_PORT}")
     
-    print(f"🤖 Бот запущен... Admin ID: {ADMIN_ID} (тип: {type(ADMIN_ID).__name__})")
+    print(f"🤖 Бот запущен... Admin ID: {ADMIN_ID}")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
