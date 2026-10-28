@@ -8,6 +8,7 @@ from database import (
     get_products, add_product, delete_product, add_category, delete_category,
     get_all_users, get_category_by_name
 )
+import cloudinary.uploader
 
 router = Router()
 
@@ -203,7 +204,7 @@ async def admin_view_category(callback: types.CallbackQuery):
         if not products:
             text = f"📂 **{category['name']}**\n\nТоваров в категории пока нет."
         else:
-            text = f" **{category['name']}**\n\nНайдено товаров: {len(products)}\n\nНажмите на товар, чтобы удалить его:"
+            text = f"📂 **{category['name']}**\n\nНайдено товаров: {len(products)}\n\nНажмите на товар, чтобы удалить его:"
         
         await callback.message.edit_text(
             text,
@@ -217,7 +218,7 @@ async def admin_view_category(callback: types.CallbackQuery):
 @router.callback_query(F.data.startswith("admin_del_prod_"))
 async def admin_delete_product(callback: types.CallbackQuery):
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Доступ запрещен", show_alert=True)
+        await callback.answer(" Доступ запрещен", show_alert=True)
         return
     try:
         product_id = int(callback.data.split("_")[-1])
@@ -233,12 +234,12 @@ async def admin_delete_product(callback: types.CallbackQuery):
 @router.callback_query(F.data == "admin_add_product")
 async def admin_add_product_start(callback: types.CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Доступ запрещен", show_alert=True)
+        await callback.answer(" Доступ запрещен", show_alert=True)
         return
     categories = await get_categories()
     if not categories:
         await callback.message.edit_text(
-            " Сначала создайте хотя бы одну категорию!",
+            "❌ Сначала создайте хотя бы одну категорию!",
             reply_markup=get_admin_back_keyboard()
         )
         await callback.answer()
@@ -255,7 +256,7 @@ async def admin_add_product_start(callback: types.CallbackQuery, state: FSMConte
 @router.callback_query(AddProduct.category, F.data.startswith("admin_sel_cat_"))
 async def process_category_select(callback: types.CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
-        await callback.answer(" Доступ запрещен", show_alert=True)
+        await callback.answer("⛔ Доступ запрещен", show_alert=True)
         return
     cat_id = int(callback.data.split("_")[-1])
     category = await get_category_by_id(cat_id)
@@ -309,21 +310,42 @@ async def process_price(message: types.Message, state: FSMContext):
         await state.update_data(price=price)
         await state.set_state(AddProduct.image)
         await message.answer(
-            "🖼 Шаг 5/7: Отправьте **фото товара**\n\n(или напишите 'нет', чтобы пропустить)",
+            " Шаг 5/7: Отправьте **фото товара**\n\n(или напишите 'нет', чтобы пропустить)",
             reply_markup=get_cancel_keyboard(),
             parse_mode="Markdown"
         )
     except ValueError:
-        await message.answer("❌ Неверный формат цены. Введите число, например 1500")
+        await message.answer(" Неверный формат цены. Введите число, например 1500")
 
+# ✅ ИСПРАВЛЕННАЯ ФУНКЦИЯ: загрузка фото товара в Cloudinary
 @router.message(AddProduct.image, F.photo)
 async def process_image_photo(message: types.Message, state: FSMContext):
     if not is_admin(message.from_user.id):
         return
+    
     photo = message.photo[-1]
-    file = await _bot.get_file(photo.file_id)
-    file_url = f"https://api.telegram.org/file/bot{_bot.token}/{file.file_path}"
-    await state.update_data(image=file_url)
+    
+    try:
+        # Скачиваем фото из Telegram
+        file = await _bot.get_file(photo.file_id)
+        file_url = f"https://api.telegram.org/file/bot{_bot.token}/{file.file_path}"
+        
+        # ✅ Загружаем в Cloudinary для вечной ссылки
+        upload_result = cloudinary.uploader.upload(
+            file_url,
+            folder="puffy_products",
+            resource_type="image"
+        )
+        permanent_url = upload_result['secure_url']
+        
+        await state.update_data(image=permanent_url)
+        print(f"✅ Фото товара загружено в Cloudinary: {permanent_url}")
+    except Exception as e:
+        print(f"⚠️ Ошибка загрузки в Cloudinary: {e}, используем Telegram URL")
+        file = await _bot.get_file(photo.file_id)
+        permanent_url = f"https://api.telegram.org/file/bot{_bot.token}/{file.file_path}"
+        await state.update_data(image=permanent_url)
+    
     await state.set_state(AddProduct.flavors_type)
     await message.answer(
         "🏷 Шаг 6/7: Что будете указывать для этого товара?",
@@ -348,7 +370,7 @@ async def process_image_text(message: types.Message, state: FSMContext):
 @router.callback_query(AddProduct.flavors_type, F.data.startswith("flav_type_"))
 async def process_flavors_type(callback: types.CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Доступ запрещен", show_alert=True)
+        await callback.answer(" Доступ запрещен", show_alert=True)
         return
     
     flavor_type = callback.data.replace("flav_type_", "")
@@ -364,7 +386,7 @@ async def process_flavors_type(callback: types.CallbackQuery, state: FSMContext)
     
     type_emoji = {
         "Вкусы": "🍓",
-        "Цвета": "",
+        "Цвета": "🎨",
         "Характеристики": "⚙️",
         "В наличии": "📦"
     }.get(flavor_type, "📦")
@@ -386,7 +408,6 @@ async def process_flavors_type(callback: types.CallbackQuery, state: FSMContext)
     )
     await callback.answer()
 
-# ✅ ИСПРАВЛЕННАЯ обработка flavors - поддержка многословных вкусов
 @router.message(AddProduct.flavors)
 async def process_flavors(message: types.Message, state: FSMContext):
     if not is_admin(message.from_user.id):
@@ -394,18 +415,12 @@ async def process_flavors(message: types.Message, state: FSMContext):
     
     text = message.text.strip()
     
-    # Проверка на пропуск
     if text.lower() in ("нет", "no", "-", "пропустить"):
         flavors = ""
     else:
-        # ✅ Нормализация: заменяем переносы строк на запятые
         normalized = text.replace('\n', ', ').replace('\r', ', ')
-        
-        # ✅ Очищаем от лишних запятых и пробелов
         parts = [part.strip() for part in normalized.split(',')]
-        parts = [part for part in parts if part]  # убираем пустые
-        
-        # ✅ Собираем обратно через запятую с пробелом
+        parts = [part for part in parts if part]
         flavors = ', '.join(parts)
     
     await state.update_data(flavors=flavors)
@@ -436,19 +451,19 @@ async def _finalize_product(message, state: FSMContext):
         report = (
             f"✅ **Товар добавлен!**\n\n"
             f"📂 Категория: {data['category']}\n"
-            f" Название: {data['name']}\n"
+            f"📝 Название: {data['name']}\n"
             f"💰 Цена: {int(data['price'])}₽\n"
-            f" ID товара: {product_id}\n"
+            f"🆔 ID товара: {product_id}\n"
         )
         
         if data.get('description'):
             desc = data['description']
             report += f"📋 Описание: {desc[:50]}{'...' if len(desc) > 50 else ''}\n"
         else:
-            report += " Описание: пропущено\n"
+            report += "📋 Описание: пропущено\n"
         
         if flavors_type and flavors:
-            emoji = {"Вкусы": "🍓", "Цвета": "🎨", "Характеристики": "⚙️", "В наличии": ""}.get(flavors_type, "")
+            emoji = {"Вкусы": "🍓", "Цвета": "🎨", "Характеристики": "⚙️", "В наличии": "📦"}.get(flavors_type, "📦")
             report += f"{emoji} {flavors_type}: {flavors}\n"
         else:
             report += "🏷 Вариации: пропущены\n"
@@ -486,7 +501,7 @@ async def admin_categories(callback: types.CallbackQuery):
 @router.callback_query(F.data.startswith("admin_remove_cat_"))
 async def admin_delete_category(callback: types.CallbackQuery):
     if not is_admin(callback.from_user.id):
-        await callback.answer(" Доступ запрещен", show_alert=True)
+        await callback.answer("⛔ Доступ запрещен", show_alert=True)
         return
     try:
         cat_id = int(callback.data.split("_")[-1])
@@ -517,7 +532,7 @@ async def admin_delete_category(callback: types.CallbackQuery):
 @router.callback_query(F.data == "admin_add_category")
 async def admin_add_category_start(callback: types.CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Доступ запрещен", show_alert=True)
+        await callback.answer(" Доступ запрещен", show_alert=True)
         return
     await state.set_state(AddCategory.name)
     await callback.message.edit_text(
@@ -546,21 +561,41 @@ async def process_category_name(message: types.Message, state: FSMContext):
         parse_mode="Markdown"
     )
 
+# ✅ ИСПРАВЛЕННАЯ ФУНКЦИЯ: загрузка фото категории в Cloudinary
 @router.message(AddCategory.image, F.photo)
 async def process_category_image_photo(message: types.Message, state: FSMContext):
     if not is_admin(message.from_user.id):
         return
+    
     photo = message.photo[-1]
-    file = await _bot.get_file(photo.file_id)
-    file_url = f"https://api.telegram.org/file/bot{_bot.token}/{file.file_path}"
-    await state.update_data(image=file_url)
+    
+    try:
+        # Скачиваем фото из Telegram
+        file = await _bot.get_file(photo.file_id)
+        file_url = f"https://api.telegram.org/file/bot{_bot.token}/{file.file_path}"
+        
+        # ✅ Загружаем в Cloudinary для вечной ссылки
+        upload_result = cloudinary.uploader.upload(
+            file_url,
+            folder="puffy_categories",
+            resource_type="image"
+        )
+        permanent_url = upload_result['secure_url']
+        
+        await state.update_data(image=permanent_url)
+        print(f"✅ Фото категории загружено в Cloudinary: {permanent_url}")
+    except Exception as e:
+        print(f"️ Ошибка загрузки в Cloudinary: {e}, используем Telegram URL")
+        file = await _bot.get_file(photo.file_id)
+        permanent_url = f"https://api.telegram.org/file/bot{_bot.token}/{file.file_path}"
+        await state.update_data(image=permanent_url)
     
     data = await state.get_data()
     try:
-        cat_id = await add_category(data['name'], file_url)
+        cat_id = await add_category(data['name'], permanent_url)
         await message.answer(
             f"✅ **Категория добавлена!**\n\n"
-            f"📂 Название: {data['name']}\n"
+            f" Название: {data['name']}\n"
             f"🆔 ID: {cat_id}\n\n"
             f"Теперь можно добавлять товары в эту категорию.",
             reply_markup=get_admin_main_keyboard(),
@@ -582,8 +617,8 @@ async def process_category_image_text(message: types.Message, state: FSMContext)
         cat_id = await add_category(data['name'], image_url)
         await message.answer(
             f"✅ **Категория добавлена!**\n\n"
-            f" Название: {data['name']}\n"
-            f"🆔 ID: {cat_id}\n\n"
+            f"📂 Название: {data['name']}\n"
+            f" ID: {cat_id}\n\n"
             f"Теперь можно добавлять товары в эту категорию.",
             reply_markup=get_admin_main_keyboard(),
             parse_mode="Markdown"
@@ -599,7 +634,7 @@ async def admin_broadcast_start(callback: types.CallbackQuery, state: FSMContext
         return
     await state.set_state(Broadcast.text)
     await callback.message.edit_text(
-        "📢 **Рассылка сообщений**\n\n"
+        " **Рассылка сообщений**\n\n"
         "Шаг 1/3: Введите текст сообщения.\n\n"
         "Поддерживается Markdown форматирование:\n"
         "• *курсив* • **жирный** • __подчёркнутый__\n"
@@ -622,7 +657,7 @@ async def process_broadcast_photo(message: types.Message, state: FSMContext):
     
     preview_text = caption if caption else "(без текста)"
     await message.answer(
-        f"📋 **Предпросмотр рассылки:**\n\n"
+        f" **Предпросмотр рассылки:**\n\n"
         f"📎 Фото: да\n"
         f"📝 Текст: {preview_text[:100]}{'...' if len(preview_text) > 100 else ''}\n\n"
         f"Отправить всем пользователям?",
