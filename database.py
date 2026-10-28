@@ -1,7 +1,16 @@
 import asyncpg
 import os
+import cloudinary
+import cloudinary.uploader
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
+
+# ✅ Настройка Cloudinary из переменных окружения Render
+cloudinary.config(
+    cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.environ.get("CLOUDINARY_API_KEY"),
+    api_secret=os.environ.get("CLOUDINARY_API_SECRET")
+)
 
 async def get_db():
     return await asyncpg.connect(DATABASE_URL)
@@ -40,7 +49,7 @@ async def init_db():
             await conn.execute("ALTER TABLE users ALTER COLUMN user_id TYPE BIGINT")
             print("✅ Тип user_id изменён на BIGINT")
         except Exception as e:
-            print(f"⚠️ Не удалось изменить тип user_id: {e}")
+            print(f"️ Не удалось изменить тип user_id: {e}")
         
         try:
             await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
@@ -107,7 +116,6 @@ async def add_category(name, image_url):
         await conn.close()
 
 async def delete_category(category_id):
-    """Удаляет категорию. Возвращает (успех, количество товаров в категории)."""
     conn = await get_db()
     try:
         row = await conn.fetchrow("SELECT name FROM categories WHERE id=$1", category_id)
@@ -115,10 +123,9 @@ async def delete_category(category_id):
             return False, 0
         category_name = row['name']
         
-        # Проверяем, есть ли товары в этой категории
         count = await conn.fetchval("SELECT COUNT(*) FROM products WHERE category=$1", category_name)
         if count > 0:
-            return False, count  # Нельзя удалить — есть товары
+            return False, count
         
         await conn.execute("DELETE FROM categories WHERE id=$1", category_id)
         return True, 0
