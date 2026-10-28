@@ -225,7 +225,7 @@
     </div>
 
     <div id="search-page" class="page">
-        <div class="top-bar"><button class="back-btn" onclick="clearSearch()">← Назад</button><h2>🔍 Поиск</h2></div>
+        <div class="top-bar"><button class="back-btn" onclick="clearSearch()">← Назад</button><h2> Поиск</h2></div>
         <div class="search-results-title" id="search-results-title"></div>
         <div class="products-grid" id="search-results-grid"><div class="loading">Поиск...</div></div>
     </div>
@@ -260,7 +260,7 @@
                 <div class="menu-item" onclick="showCart()"><span class="menu-icon">🛒</span><span class="menu-text">Корзина</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="showFavorites()"><span class="menu-icon">❤️</span><span class="menu-text">Избранное</span><span class="menu-arrow">›</span></div>
                 <div class="menu-item" onclick="openSupport()"><span class="menu-icon">💬</span><span class="menu-text">Поддержка</span><span class="menu-arrow">›</span></div>
-                <div class="menu-item" onclick="showAbout()"><span class="menu-icon">️</span><span class="menu-text">О магазине</span><span class="menu-arrow">›</span></div>
+                <div class="menu-item" onclick="showAbout()"><span class="menu-icon">ℹ️</span><span class="menu-text">О магазине</span><span class="menu-arrow">›</span></div>
             </div>
         </div>
     </div>
@@ -306,7 +306,7 @@
         loadOrdersFromStorage();
 
         const MANAGER_USERNAME = 'ghjkIz';
-        const categoryEmojis = {'Одноразки': '', 'Под-системы': '🔋', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
+        const categoryEmojis = {'Одноразки': '💨', 'Под-системы': '', 'Жидкость': '💧', 'Расходники': '⚙️', 'Жевательный табак': '🌿', 'Кальяны': '🪝'};
 
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('visible'); });
@@ -369,18 +369,28 @@
             let flavorsList = [];
             
             if (flavors && flavors.trim() && flavors.toLowerCase() !== 'нет') {
+                // ✅ Улучшенный парсинг: поддержка префикса "Тип: ..."
                 const prefixMatch = flavors.match(/^(Вкусы|Цвета|Характеристики|Размеры|В наличии|Другое)\s*:\s*(.+)$/i);
                 
                 if (prefixMatch) {
                     flavorsType = prefixMatch[1];
-                    flavorsList = prefixMatch[2].split(',').map(f => f.trim()).filter(f => f.length > 0);
+                    const flavorsText = prefixMatch[2];
+                    
+                    // ✅ Разбиваем и по запятой, и по переносу строки
+                    flavorsList = flavorsText
+                        .split(/,|\n/)
+                        .map(f => f.trim())
+                        .filter(f => f.length > 0);
                 } else {
-                    flavorsList = flavors.split(',').map(f => f.trim()).filter(f => f.length > 0);
+                    flavorsList = flavors
+                        .split(/,|\n/)
+                        .map(f => f.trim())
+                        .filter(f => f.length > 0);
                 }
                 
                 if (flavorsList.length > 0) {
                     let title = 'В наличии:';
-                    let emoji = '';
+                    let emoji = '📦';
                     if (flavorsType === 'Вкусы') { title = 'Вкусы в наличии:'; emoji = '🍓'; }
                     else if (flavorsType === 'Цвета') { title = 'Цвета в наличии:'; emoji = '🎨'; }
                     else if (flavorsType === 'Характеристики') { title = 'Характеристики:'; emoji = '⚙️'; }
@@ -401,7 +411,7 @@
             const hasImage = image && image.length > 5 && image.startsWith('http');
             const imageHtml = hasImage 
                 ? '<img src="' + image + '" alt="' + name + '">'
-                : '<div class="img-fallback"></div>';
+                : '<div class="img-fallback">📦</div>';
             
             const safeName = name.replace(/'/g, "\\'");
             const safeImage = (image || '').replace(/'/g, "\\'");
@@ -500,7 +510,7 @@
 
         function clearCart() {
             if (cart.length === 0) { showToast('🛒 Корзина уже пуста'); return; }
-            if (confirm('Очистить корзину?')) { cart = []; saveCartToStorage(); showCart(); showToast(' Корзина очищена'); }
+            if (confirm('Очистить корзину?')) { cart = []; saveCartToStorage(); showCart(); showToast('🗑 Корзина очищена'); }
         }
 
         function updateTotal() {
@@ -509,8 +519,14 @@
 
         function checkout() {
             if (cart.length === 0) { 
-                showToast(' Корзина пуста'); 
+                showToast('🛒 Корзина пуста'); 
                 return; 
+            }
+            
+            if (!tg || !tg.sendData) {
+                showToast('❌ Откройте через Telegram');
+                console.error('❌ tg.sendData недоступен');
+                return;
             }
             
             const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -535,7 +551,7 @@
                 timestamp: new Date().toISOString()
             };
             
-            console.log('📦 Данные заказа:', orderData);
+            console.log(' Данные заказа:', orderData);
             
             const btn = document.querySelector('.checkout-btn');
             if (btn) {
