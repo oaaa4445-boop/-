@@ -9,12 +9,17 @@ from aiogram.types import WebAppInfo, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
 import traceback
 import html as html_module
+import asyncpg
 
 from config import BOT_TOKEN, ADMIN_ID, WEB_PORT, MANAGER_USERNAME
 from admin import router as admin_router, setup_admin
 from database import init_db, get_categories, get_products, get_products_by_ids, search_products, save_user
 
 WEBAPP_DIR = Path(__file__).parent / "webapp"
+
+# ✅ СЕКРЕТ ДЛЯ ЗАЩИТЫ MIGRATE ENDPOINT
+# Меняй на любое своё слово — это защита от случайного вызова
+MIGRATE_SECRET = "puffy2026migrate"
 
 async def handle_index(request):
     with open(WEBAPP_DIR / "index.html", "r", encoding="utf-8") as f:
@@ -50,6 +55,117 @@ async def api_search(request):
         return web.json_response([])
     products = await search_products(query)
     return web.json_response(products)
+
+# ✅ ENDPOINT ДЛЯ ПЕРЕНОСА ДАННЫХ
+async def handle_migrate(request):
+    secret = request.query.get("secret", "")
+    
+    if secret != MIGRATE_SECRET:
+        return web.Response(
+            text="❌ Неверный секрет. Используй ?secret=puffy2026migrate",
+            content_type="text/plain"
+        )
+    
+    old_db_url = os.environ.get("OLD_DATABASE_URL")
+    if not old_db_url:
+        return web.Response(
+            text="❌ Переменная OLD_DATABASE_URL не задана в Render Environment",
+            content_type="text/plain"
+        )
+    
+    new_db_url = os.environ.get("DATABASE_URL")
+    if not new_db_url:
+        return web.Response(
+            text="❌ Переменная DATABASE_URL не задана",
+            content_type="text/plain"
+        )
+    
+    log = []
+    log.append("🔄 Начинаем перенос данных...")
+    
+    # Читаем из старой базы
+    try:
+        log.append("📥 Подключаемся к СТАРОЙ базе...")
+        old_conn = await asyncpg.connect(old_db_url)
+        
+        categories = await old_conn.fetch("SELECT * FROM categories")
+        products = await old_conn.fetch("SELECT * FROM products")
+        users = await old_conn.fetch("SELECT * FROM users")
+        
+        await old_conn.close()
+        log.append(f"   Найдено: {len(categories)} категорий, {len(products)} товаров, {len(users)} пользователей.")
+    except Exception as e:
+        log.append(f"❌ Ошибка подключения к СТАРОЙ базе: {e}")
+        log.append("💡 Возможно, старая база уже удалена Render или ссылка неверная.")
+        return web.Response(
+            text="\n".join(log),
+            content_type="text/plain"
+        )
+    
+    if not categories and not products and not users:
+        log.append("⚠️ Старая база пуста. Переносить нечего.")
+        return web.Response(text="\n".join(log), content_type="text/plain")
+    
+    # Загружаем в новую базу
+    try:
+        log.append("📤 Подключаемся к НОВОЙ базе (Neon)...")
+        new_conn = await asyncpg.connect(new_db_url)
+        
+        # Создаём таблицы
+        await new_conn.execute("""
+            CREATE TABLE IF NOT EXISTS categories (
+                id INTEGER PRIMARY KEY, name TEXT, image TEXT
+            );
+            CREATE TABLE IF NOT EXISTS products (
+                id SERIAL PRIMARY KEY, category TEXT, name TEXT, 
+                description TEXT, price REAL, image TEXT, flavors TEXT
+            );
+            CREATE TABLE IF NOT EXISTS users (
+                user_id BIGINT PRIMARY KEY, username TEXT, 
+                full_name TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        
+        # Перенос категорий
+        if categories:
+            await new_conn.execute("TRUNCATE TABLE categories")
+            for cat in categories:
+                await new_conn.execute(
+                    "INSERT INTO categories (id, name, image) VALUES ($1, $2, $3)",
+                    cat['id'], cat['name'], cat['image']
+                )
+            log.append(f"   ✅ Перенесено {len(categories)} категорий.")
+        
+        # Перенос товаров
+        if products:
+            await new_conn.execute("TRUNCATE TABLE products RESTART IDENTITY")
+            for prod in products:
+                await new_conn.execute(
+                    "INSERT INTO products (category, name, description, price, image, flavors) VALUES ($1, $2, $3, $4, $5, $6)",
+                    prod['category'], prod['name'], prod['description'], 
+                    prod['price'], prod['image'], prod['flavors']
+                )
+            log.append(f"   ✅ Перенесено {len(products)} товаров.")
+        
+        # Перенос пользователей
+        if users:
+            for user in users:
+                await new_conn.execute(
+                    """INSERT INTO users (user_id, username, full_name) 
+                       VALUES ($1, $2, $3) 
+                       ON CONFLICT (user_id) DO NOTHING""",
+                    user['user_id'], user['username'], user['full_name']
+                )
+            log.append(f"   ✅ Перенесено {len(users)} пользователей.")
+        
+        await new_conn.close()
+        log.append("\n🎉 ПЕРЕНОС УСПЕШНО ЗАВЕРШЁН!")
+        log.append("\n⚠️ ВАЖНО: Теперь удали переменную OLD_DATABASE_URL из Render Environment!")
+        
+    except Exception as e:
+        log.append(f"❌ Ошибка при записи в новую базу: {e}")
+    
+    return web.Response(text="\n".join(log), content_type="text/plain")
 
 async def handle_order(request):
     print("\n" + "=" * 70)
@@ -142,8 +258,7 @@ async def handle_order(request):
         await bot.send_message(user_id, user_message, parse_mode="HTML")
         print(f"✅ Подтверждение отправлено пользователю!")
     except Exception as e:
-        print(f"️ Не удалось отправить пользователю: {e}")
-        print(f"💡 Возможно, пользователь не начал диалог с ботом")
+        print(f"⚠️ Не удалось отправить пользователю: {e}")
     
     print("=" * 70)
     
@@ -163,6 +278,7 @@ def create_web_app():
     app.router.add_get("/api/products-by-ids", api_products_by_ids)
     app.router.add_get("/api/search", api_search)
     app.router.add_post("/api/order", handle_order)
+    app.router.add_get("/migrate", handle_migrate)  # ✅ ENDPOINT ДЛЯ МИГРАЦИИ
     return app
 
 bot = Bot(token=BOT_TOKEN)
@@ -176,9 +292,10 @@ START_TEXT = """🛍 PUFFY — твой вейп-шоп в Екб
 
 ✅ Только оригинальная продукция
 ✅ Цены ниже, чем в офлайн-магазинах
+✅ Доставка за 60 минут по городу
 ✅ Скидки постоянным клиентам
 
-️ 18+"""
+⚠️ 18+"""
 
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
@@ -189,7 +306,7 @@ async def cmd_start(message: types.Message):
         full_name = message.from_user.full_name or ""
         await save_user(message.from_user.id, username, full_name)
     except Exception as e:
-        print(f"️ Ошибка сохранения: {e}")
+        print(f"⚠️ Ошибка сохранения: {e}")
     
     webapp_url = os.environ.get("RENDER_EXTERNAL_URL", f"http://localhost:{WEB_PORT}")
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -221,9 +338,9 @@ async def handle_webapp_data(message: types.Message):
         order_text = f"🛒 <b>НОВЫЙ ЗАКАЗ</b>\n\n"
         order_text += f"👤 <b>{safe_name}</b>\n"
         order_text += f"🆔 ID: <code>{user_id}</code>\n"
-        order_text += f" TG: @{user_username}\n"
+        order_text += f"📱 TG: @{user_username}\n"
         order_text += f"🔗 <a href='{profile_link}'>Написать пользователю</a>\n\n"
-        order_text += f" <b>Состав заказа:</b>\n"
+        order_text += f"📦 <b>Состав заказа:</b>\n"
         order_text += "━━━━━━━━━━━━━━━━━━━━\n"
         
         total = 0
@@ -252,11 +369,12 @@ async def handle_webapp_data(message: types.Message):
         try:
             user_msg = (
                 f"✅ <b>Заказ оформлен!</b>\n\n"
-                f"Спасибо за покупку, {safe_name}! \n\n"
-                f" <b>Ваш заказ:</b>\n"
+                f"Спасибо за покупку, {safe_name}! 🎉\n\n"
+                f"📦 <b>Ваш заказ:</b>\n"
                 f"• Позиций: {items_count}\n"
                 f"• Сумма: <b>{total}₽</b>\n\n"
                 f"⏳ <b>Ожидайте</b> — менеджер свяжется с вами в ближайшее время.\n\n"
+                f"Вопросы? @{MANAGER_USERNAME}"
             )
             await message.answer(user_msg, parse_mode="HTML")
             print(f"✅ Подтверждение отправлено пользователю (fallback)")
@@ -278,7 +396,7 @@ async def main():
     site = web.TCPSite(runner, "0.0.0.0", WEB_PORT)
     await site.start()
     print(f"🌐 Веб-сервер: http://0.0.0.0:{WEB_PORT}")
-    print(f" Бот запущен | Admin ID: {ADMIN_ID}")
+    print(f"🤖 Бот запущен | Admin ID: {ADMIN_ID}")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
